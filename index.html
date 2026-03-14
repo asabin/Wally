@@ -905,29 +905,31 @@ function createWally() {
   snout.position.set(0, 2.65, 0.5);
   group.add(snout);
 
-  // Eyes - GLOWING RED
-  const eyeMat = new THREE.MeshPhongMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 3 });
-  const lEye = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), eyeMat);
-  lEye.position.set(-0.25, 3.0, 0.45);
+  // Eyes - GLOWING RED (large, visible from distance)
+  const eyeMat = new THREE.MeshPhongMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 4 });
+  const lEye = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 10), eyeMat);
+  lEye.position.set(-0.28, 3.05, 0.42);
   group.add(lEye);
-  const rEye = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), eyeMat);
-  rEye.position.set(0.25, 3.0, 0.45);
+  const rEye = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 10), eyeMat);
+  rEye.position.set(0.28, 3.05, 0.42);
   group.add(rEye);
 
-  // Eye glow
-  const eyeLight = new THREE.PointLight(0xff2200, 2.0, 25);
+  // Eye glow (brighter, longer range)
+  const eyeLight = new THREE.PointLight(0xff2200, 3.0, 35);
   eyeLight.position.set(0, 3, 0.6);
   group.add(eyeLight);
 
-  // Tusks
-  const tuskMat = new THREE.MeshPhongMaterial({ color: 0xeeeedd });
-  const lTusk = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.6, 6), tuskMat);
-  lTusk.position.set(-0.2, 2.2, 0.5);
-  lTusk.rotation.x = 0.15;
+  // Tusks - large, curved, walrus-style
+  const tuskMat = new THREE.MeshPhongMaterial({ color: 0xfffff0, emissive: 0xddddc8, emissiveIntensity: 0.3, shininess: 80 });
+  const lTusk = new THREE.Mesh(new THREE.ConeGeometry(0.09, 1.0, 8), tuskMat);
+  lTusk.position.set(-0.22, 2.05, 0.55);
+  lTusk.rotation.x = 0.2;
+  lTusk.rotation.z = 0.1;
   group.add(lTusk);
-  const rTusk = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.6, 6), tuskMat);
-  rTusk.position.set(0.2, 2.2, 0.5);
-  rTusk.rotation.x = 0.15;
+  const rTusk = new THREE.Mesh(new THREE.ConeGeometry(0.09, 1.0, 8), tuskMat);
+  rTusk.position.set(0.22, 2.05, 0.55);
+  rTusk.rotation.x = 0.2;
+  rTusk.rotation.z = -0.1;
   group.add(rTusk);
 
   // Flippers
@@ -953,6 +955,7 @@ function createWally() {
   hat.position.set(0, 3.55, 0);
   group.add(hat);
 
+  group.scale.set(1.8, 1.8, 1.8);
   group.position.set(0, 0, -30);
   scene.add(group);
 
