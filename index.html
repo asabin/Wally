@@ -1605,6 +1605,18 @@ function updatePlayer(dt) {
       camera.fov = 85;
       camera.updateProjectionMatrix();
 
+      // Collect keys while sliding
+      keyFragments.forEach(kf => {
+        if (kf.collected) return;
+        if (playerPos.distanceTo(kf.pos) < 3) {
+          kf.collected = true;
+          kf.mesh.visible = false;
+          keysCollected++;
+          keyCountEl.textContent = `KEYS: ${keysCollected} / ${CFG.KEY_COUNT}`;
+          playKeyPickup();
+        }
+      });
+
       // Skip all other movement
       camera.position.copy(playerPos);
       playerVelY = 0;
