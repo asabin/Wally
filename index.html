@@ -919,17 +919,17 @@ function createWally() {
   eyeLight.position.set(0, 3, 0.6);
   group.add(eyeLight);
 
-  // Tusks - large, curved, walrus-style
+  // Tusks - long walrus tusks extending well below the mouth
   const tuskMat = new THREE.MeshPhongMaterial({ color: 0xfffff0, emissive: 0xddddc8, emissiveIntensity: 0.3, shininess: 80 });
-  const lTusk = new THREE.Mesh(new THREE.ConeGeometry(0.09, 1.0, 8), tuskMat);
-  lTusk.position.set(-0.22, 2.05, 0.55);
-  lTusk.rotation.x = 0.2;
-  lTusk.rotation.z = 0.1;
+  const lTusk = new THREE.Mesh(new THREE.ConeGeometry(0.1, 1.6, 8), tuskMat);
+  lTusk.position.set(-0.25, 1.7, 0.55);
+  lTusk.rotation.x = 0.15;
+  lTusk.rotation.z = 0.08;
   group.add(lTusk);
-  const rTusk = new THREE.Mesh(new THREE.ConeGeometry(0.09, 1.0, 8), tuskMat);
-  rTusk.position.set(0.22, 2.05, 0.55);
-  rTusk.rotation.x = 0.2;
-  rTusk.rotation.z = -0.1;
+  const rTusk = new THREE.Mesh(new THREE.ConeGeometry(0.1, 1.6, 8), tuskMat);
+  rTusk.position.set(0.25, 1.7, 0.55);
+  rTusk.rotation.x = 0.15;
+  rTusk.rotation.z = -0.08;
   group.add(rTusk);
 
   // Flippers
@@ -955,7 +955,7 @@ function createWally() {
   hat.position.set(0, 3.55, 0);
   group.add(hat);
 
-  group.scale.set(1.8, 1.8, 1.8);
+  group.scale.set(0.9, 0.9, 0.9);
   group.position.set(0, 0, -30);
   scene.add(group);
 
