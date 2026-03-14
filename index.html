@@ -349,6 +349,7 @@ let slideRadii = [];  // radius of each slide
 let isSliding = false;
 let slideT = 0;       // parameter along slide curve (0-1)
 let slideCurveIndex = -1;
+let slideCooldown = 0; // prevent re-entering slide immediately after exit
 let playerVelY = 0;   // vertical velocity for jumping
 let isJumping = false;
 let keyFragments = []; // {mesh, collected, light}
@@ -589,13 +590,13 @@ function addPool(x, z, w, d, depth) {
   water.position.set(x, 0.1, z);
   scene.add(water);
 
-  // Pool edges (low walls)
+  // Pool edges (low walls, visual only — no colliders so Wally can enter)
   const edgeMat = new THREE.MeshPhongMaterial({ map: wallTex, color: 0x5a6a7a });
   const eh = 0.6;
-  addBox(x, 0, z - d/2, w + 0.6, eh, 0.3, edgeMat);
-  addBox(x, 0, z + d/2, w + 0.6, eh, 0.3, edgeMat);
-  addBox(x - w/2, 0, z, 0.3, eh, d, edgeMat);
-  addBox(x + w/2, 0, z, 0.3, eh, d, edgeMat);
+  addBox(x, 0, z - d/2, w + 0.6, eh, 0.3, edgeMat, false);
+  addBox(x, 0, z + d/2, w + 0.6, eh, 0.3, edgeMat, false);
+  addBox(x - w/2, 0, z, 0.3, eh, d, edgeMat, false);
+  addBox(x + w/2, 0, z, 0.3, eh, d, edgeMat, false);
 
 }
 
@@ -1553,8 +1554,9 @@ function updatePlayer(dt) {
   const groundY = floorY + CFG.PLAYER_HEIGHT;
 
   // --- Sliding mechanic ---
+  if (slideCooldown > 0) slideCooldown -= dt;
   // Start sliding if on a slide surface and slide slopes downward
-  if (!isSliding && onSlideIdx >= 0 && !onLadder && !isJumping) {
+  if (!isSliding && onSlideIdx >= 0 && !onLadder && !isJumping && slideCooldown <= 0) {
     const curve = slideCurves[onSlideIdx];
     const t = onSlidePointIdx / slidePaths[onSlideIdx].length;
     const tangent = curve.getTangent(Math.min(t, 0.99));
@@ -1572,9 +1574,15 @@ function updatePlayer(dt) {
 
     if (slideT >= 1.0) {
       // Reached the bottom — exit slide
-      slideT = 1.0;
+      const curve = slideCurves[slideCurveIndex];
+      const exitPos = curve.getPoint(1.0);
+      const exitTan = curve.getTangent(0.99);
+      // Place player slightly past the end so they don't re-trigger
+      playerPos.set(exitPos.x + exitTan.x * 2, CFG.PLAYER_HEIGHT, exitPos.z + exitTan.z * 2);
+      slideT = 0;
       isSliding = false;
       slideCurveIndex = -1;
+      slideCooldown = 1.5; // can't re-enter slide for 1.5s
       camera.fov = 70;
       camera.updateProjectionMatrix();
     } else {
@@ -1830,6 +1838,7 @@ function resetGame() {
   isSliding = false;
   slideT = 0;
   slideCurveIndex = -1;
+  slideCooldown = 0;
   camera.fov = 70;
   camera.updateProjectionMatrix();
 
