@@ -216,7 +216,7 @@ canvas { display: block; }
 @media (pointer: coarse) {
   #touch-controls { display: block; }
   #crosshair { display: none; }
-  #stamina-bar-bg { bottom: 15px; }
+  #stamina-bar-bg { bottom: 25px; }
   #interact-prompt { bottom: 200px; }
 }
 </style>
@@ -228,8 +228,8 @@ canvas { display: block; }
   <h2>"Come Swim With Wally... Forever"</h2>
   <div class="instructions" id="desktop-instructions">
     <span>WASD</span> — Move &nbsp;&nbsp; <span>MOUSE</span> — Look<br>
-    <span>SHIFT</span> — Sprint &nbsp;&nbsp; <span>F</span> — Flashlight<br>
-    <span>E</span> — Use Key at Exit Gate<br><br>
+    <span>SHIFT</span> — Sprint &nbsp;&nbsp; <span>SPACE</span> — Jump<br>
+    <span>F</span> — Flashlight &nbsp;&nbsp; <span>E</span> — Use Key at Exit Gate<br><br>
     Collect all 5 key fragments to unlock the exit.<br>
     Avoid Wally. If he catches you... it's over.
   </div>
@@ -270,6 +270,7 @@ canvas { display: block; }
   </div>
   <div id="touch-sprint">RUN</div>
   <div id="touch-action-buttons">
+    <div class="touch-btn" id="touch-jump">&#9650;</div>
     <div class="touch-btn" id="touch-flashlight">F</div>
     <div class="touch-btn" id="touch-escape">E</div>
   </div>
@@ -341,6 +342,9 @@ let stamina = CFG.MAX_STAMINA;
 let colliders = [];   // {min:{x,z}, max:{x,z}}
 let poolAreas = [];   // same format, for visual only
 let ladderZones = []; // {x, z, height, radius} — climbable areas
+let platforms = [];   // {min:{x,z}, max:{x,z}, y} — walkable surfaces at height
+let playerVelY = 0;   // vertical velocity for jumping
+let isJumping = false;
 let keyFragments = []; // {mesh, collected, light}
 let wally, wallyState, wallyTarget, wallyLostTimer, wallyMesh;
 let wallyLOSLostTimer = 0;
@@ -693,6 +697,7 @@ function buildEnvironment() {
 
   // ---- Slide Tower 1 (far NW) — spiral descent ----
   addBox(-38, 0, -22, 7, 14, 7, wallMat);
+  platforms.push({ min:{x:-38-5, z:-22-5}, max:{x:-38+5, z:-22+6}, y:14 });
   addStairs(-38, -22, 14, 'z');
   const curve1 = new THREE.CatmullRomCurve3([
     new THREE.Vector3(-38, 13, -22),
@@ -714,6 +719,7 @@ function buildEnvironment() {
 
   // ---- Slide Tower 2 (far NE) — sweeping curve ----
   addBox(35, 0, -25, 6, 11, 6, wallMat);
+  platforms.push({ min:{x:35-5, z:-25-5}, max:{x:35+5, z:-25+6}, y:11 });
   addStairs(35, -25, 11, 'z');
   const curve2 = new THREE.CatmullRomCurve3([
     new THREE.Vector3(35, 10, -25),
@@ -734,6 +740,7 @@ function buildEnvironment() {
 
   // ---- Slide Tower 3 (south-west) — short twisty ----
   addBox(-10, 0, -38, 5, 9, 5, wallMat);
+  platforms.push({ min:{x:-10-4, z:-38-4}, max:{x:-10+6, z:-38+4}, y:9 });
   addStairs(-10, -38, 9, 'x');
   const curve3 = new THREE.CatmullRomCurve3([
     new THREE.Vector3(-10, 8, -38),
@@ -1025,7 +1032,8 @@ function updateWally(dt) {
       wallySpeed = chaseSpeed;
       moveWallyToward(playerPos.x, playerPos.z, dt);
 
-      if (distToPlayer < CFG.WALLY_CATCH_RANGE) {
+      // Wally can only catch you on the ground
+      if (distToPlayer < CFG.WALLY_CATCH_RANGE && playerPos.y < CFG.PLAYER_HEIGHT + 1) {
         triggerJumpscare();
         return;
       }
@@ -1269,6 +1277,7 @@ function setupControls() {
       flashlight.visible = flashlightOn;
     }
     if (k === 'e') tryEscape();
+    if (k === ' ') { e.preventDefault(); tryJump(); }
   });
 
   document.addEventListener('keyup', (e) => {
@@ -1346,6 +1355,10 @@ function setupTouchControls() {
   holdBtn(sprintBtn, () => { touchSprinting = true; }, () => { touchSprinting = false; });
 
   // Action buttons
+  document.getElementById('touch-jump').addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    tryJump();
+  }, { passive: false });
   document.getElementById('touch-flashlight').addEventListener('touchstart', (e) => {
     e.preventDefault();
     flashlightOn = !flashlightOn;
@@ -1421,7 +1434,21 @@ function updatePlayer(dt) {
     }
   }
 
-  if (onLadder && playerPos.y > CFG.PLAYER_HEIGHT + 0.5) {
+  // Platform check: find floor height at player position
+  let floorY = 0; // ground level
+  for (const p of platforms) {
+    if (playerPos.x > p.min.x && playerPos.x < p.max.x &&
+        playerPos.z > p.min.z && playerPos.z < p.max.z) {
+      // Land on platform if player's feet are at or above platform level
+      const feetY = playerPos.y - CFG.PLAYER_HEIGHT;
+      if (feetY >= p.y - 2) {
+        floorY = Math.max(floorY, p.y);
+      }
+    }
+  }
+  const groundY = floorY + CFG.PLAYER_HEIGHT;
+
+  if (onLadder && playerPos.y > CFG.PLAYER_HEIGHT + 0.5 && !isJumping) {
     // On ladder and elevated: W/S climb up/down, no horizontal movement
     const climbDir = (keys.w || touchMoveY < 0) ? 1 : (keys.s || touchMoveY > 0) ? -1 : 0;
     const climbSpeed = 4.0;
@@ -1439,21 +1466,38 @@ function updatePlayer(dt) {
       playerPos.z = newZ;
     }
 
-    // Start climbing if on ladder and moving forward
-    if (onLadder && (keys.w || touchMoveY < 0)) {
+    // Start climbing if on ladder and moving forward (ground level)
+    if (onLadder && !isJumping && (keys.w || touchMoveY < 0)) {
       playerPos.y = Math.min(ladderMaxY, playerPos.y + 4.0 * dt);
     }
   }
 
-  // Gravity when off ladder
-  if (!onLadder && playerPos.y > CFG.PLAYER_HEIGHT) {
-    playerPos.y = Math.max(CFG.PLAYER_HEIGHT, playerPos.y - 8.0 * dt);
+  // Jumping and gravity
+  if (isJumping) {
+    playerVelY -= 18.0 * dt; // gravity
+    playerPos.y += playerVelY * dt;
+    if (playerPos.y <= groundY) {
+      playerPos.y = groundY;
+      playerVelY = 0;
+      isJumping = false;
+    }
+  } else if (!onLadder && playerPos.y > groundY + 0.1) {
+    // Falling (walked off edge)
+    playerVelY -= 18.0 * dt;
+    playerPos.y += playerVelY * dt;
+    if (playerPos.y <= groundY) {
+      playerPos.y = groundY;
+      playerVelY = 0;
+    }
+  } else if (!onLadder) {
+    playerVelY = 0;
   }
 
-  // Head bob
-  if (isMoving && !onLadder) {
+  // Head bob (only on ground, not jumping/climbing)
+  const elevated = playerPos.y > CFG.PLAYER_HEIGHT + 0.5;
+  if (isMoving && !onLadder && !isJumping && !elevated) {
     headBob += dt * (wantsSprint ? 14 : 10);
-    playerPos.y = CFG.PLAYER_HEIGHT + Math.sin(headBob) * 0.06;
+    playerPos.y = groundY + Math.sin(headBob) * 0.06;
 
     // Footstep sounds
     footstepTimer += dt;
@@ -1463,7 +1507,7 @@ function updatePlayer(dt) {
       playFootstep();
     }
   } else {
-    if (!onLadder && playerPos.y <= CFG.PLAYER_HEIGHT) playerPos.y = CFG.PLAYER_HEIGHT;
+    if (!onLadder && !isJumping && playerPos.y <= groundY + 0.1) playerPos.y = groundY;
     footstepTimer = 0.3;
   }
 
@@ -1542,6 +1586,14 @@ function updateCompass() {
   }
 }
 
+function tryJump() {
+  if (gameState !== 'PLAYING') return;
+  if (isJumping) return;
+  // Can jump from ground or from ladder
+  isJumping = true;
+  playerVelY = 7.0; // jump impulse
+}
+
 function tryEscape() {
   if (gameState !== 'PLAYING') return;
   const distToExit = new THREE.Vector2(playerPos.x - EXIT_POS.x, playerPos.z - EXIT_POS.z).length();
@@ -1616,6 +1668,8 @@ function resetGame() {
   touchMoveX = 0; touchMoveY = 0;
   touchLookX = 0; touchLookY = 0;
   touchSprinting = false;
+  isJumping = false;
+  playerVelY = 0;
 
   // Reset keys
   keysCollected = 0;
