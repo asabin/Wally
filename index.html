@@ -319,8 +319,8 @@ const CFG = {
   MAX_STAMINA: 100,
   STAMINA_DRAIN: 22,
   STAMINA_REGEN: 12,
-  WALLY_PATROL_SPEED: 3.5,
-  WALLY_CHASE_SPEED: 6.0,
+  WALLY_PATROL_SPEED: 2.8,
+  WALLY_CHASE_SPEED: 5.0,
   WALLY_DETECT_RANGE: 22,
   WALLY_CATCH_RANGE: 2.2,
   WALLY_LOSE_TIME: 6,
@@ -340,6 +340,7 @@ let playerPos, playerEuler, keysCollected = 0;
 let stamina = CFG.MAX_STAMINA;
 let colliders = [];   // {min:{x,z}, max:{x,z}}
 let poolAreas = [];   // same format, for visual only
+let ladderZones = []; // {x, z, height, radius} — climbable areas
 let keyFragments = []; // {mesh, collected, light}
 let wally, wallyState, wallyTarget, wallyLostTimer, wallyMesh;
 let wallyLOSLostTimer = 0;
@@ -678,6 +679,10 @@ function buildEnvironment() {
       rail.position.set(tx + ox + side * ro, th / 2, tz + oz + side * roz);
       scene.add(rail);
     }
+    // Register climbable ladder zone (push slightly outside the tower)
+    const ladderX = tx + ox + (face === 'x' ? 1.5 : 0);
+    const ladderZ = tz + oz + (face === 'z' ? 1.5 : 0);
+    ladderZones.push({ x: ladderX, z: ladderZ, height: th, radius: 2.0 });
   }
 
   // Water channel material (inner tube showing water)
@@ -1402,20 +1407,51 @@ function updatePlayer(dt) {
   staminaBar.style.width = pct + '%';
   staminaBar.style.backgroundColor = pct < 25 ? '#ff4444' : pct < 50 ? '#ffaa44' : '#44aaff';
 
-  // Apply movement with collision
-  const velocity = moveDir.multiplyScalar(speed * dt);
-  const newX = playerPos.x + velocity.x;
-  const newZ = playerPos.z + velocity.z;
-
-  if (!checkCollision(newX, playerPos.z, CFG.PLAYER_RADIUS)) {
-    playerPos.x = newX;
+  // Ladder climbing: check if player is in a ladder zone
+  let onLadder = false;
+  let ladderMaxY = CFG.PLAYER_HEIGHT;
+  for (const lz of ladderZones) {
+    const ldx = playerPos.x - lz.x;
+    const ldz = playerPos.z - lz.z;
+    const distToLadder = Math.sqrt(ldx * ldx + ldz * ldz);
+    if (distToLadder < lz.radius) {
+      onLadder = true;
+      ladderMaxY = lz.height + CFG.PLAYER_HEIGHT;
+      break;
+    }
   }
-  if (!checkCollision(playerPos.x, newZ, CFG.PLAYER_RADIUS)) {
-    playerPos.z = newZ;
+
+  if (onLadder && playerPos.y > CFG.PLAYER_HEIGHT + 0.5) {
+    // On ladder and elevated: W/S climb up/down, no horizontal movement
+    const climbDir = (keys.w || touchMoveY < 0) ? 1 : (keys.s || touchMoveY > 0) ? -1 : 0;
+    const climbSpeed = 4.0;
+    playerPos.y = Math.max(CFG.PLAYER_HEIGHT, Math.min(ladderMaxY, playerPos.y + climbDir * climbSpeed * dt));
+  } else {
+    // Normal horizontal movement
+    const velocity = moveDir.multiplyScalar(speed * dt);
+    const newX = playerPos.x + velocity.x;
+    const newZ = playerPos.z + velocity.z;
+
+    if (!checkCollision(newX, playerPos.z, CFG.PLAYER_RADIUS)) {
+      playerPos.x = newX;
+    }
+    if (!checkCollision(playerPos.x, newZ, CFG.PLAYER_RADIUS)) {
+      playerPos.z = newZ;
+    }
+
+    // Start climbing if on ladder and moving forward
+    if (onLadder && (keys.w || touchMoveY < 0)) {
+      playerPos.y = Math.min(ladderMaxY, playerPos.y + 4.0 * dt);
+    }
+  }
+
+  // Gravity when off ladder
+  if (!onLadder && playerPos.y > CFG.PLAYER_HEIGHT) {
+    playerPos.y = Math.max(CFG.PLAYER_HEIGHT, playerPos.y - 8.0 * dt);
   }
 
   // Head bob
-  if (isMoving) {
+  if (isMoving && !onLadder) {
     headBob += dt * (wantsSprint ? 14 : 10);
     playerPos.y = CFG.PLAYER_HEIGHT + Math.sin(headBob) * 0.06;
 
@@ -1427,7 +1463,7 @@ function updatePlayer(dt) {
       playFootstep();
     }
   } else {
-    playerPos.y = CFG.PLAYER_HEIGHT;
+    if (!onLadder && playerPos.y <= CFG.PLAYER_HEIGHT) playerPos.y = CFG.PLAYER_HEIGHT;
     footstepTimer = 0.3;
   }
 
