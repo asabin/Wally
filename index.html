@@ -174,21 +174,24 @@ canvas { display: block; }
 #touch-controls {
   display: none; position: fixed; inset: 0; z-index: 15; pointer-events: none;
 }
-.joystick-zone {
-  position: absolute; bottom: 20px; width: 45%; height: 45%;
-  pointer-events: auto; touch-action: none;
+.dpad {
+  position: absolute; bottom: 20px; width: 160px; height: 160px;
+  pointer-events: none; touch-action: none;
 }
-.joystick-zone-left { left: 0; }
-.joystick-zone-right { right: 0; }
-.joystick-base {
-  position: absolute; width: 120px; height: 120px; border-radius: 50%;
-  background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.15);
-  display: none;
+.dpad-left { left: 15px; }
+.dpad-right { right: 15px; }
+.dpad-btn {
+  position: absolute; width: 52px; height: 52px; border-radius: 12px;
+  background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2);
+  color: rgba(255,255,255,0.5); font-size: 1.2em; font-family: 'Courier New', monospace;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: auto; touch-action: none; user-select: none;
 }
-.joystick-knob {
-  position: absolute; width: 50px; height: 50px; border-radius: 50%;
-  background: rgba(255,255,255,0.25); display: none;
-}
+.dpad-btn.active { background: rgba(255,255,255,0.3); border-color: rgba(255,255,255,0.5); }
+.dpad-up { left: 54px; top: 0; }
+.dpad-down { left: 54px; bottom: 0; }
+.dpad-left-btn { left: 0; top: 54px; }
+.dpad-right-btn { right: 0; top: 54px; }
 #touch-sprint {
   position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%);
   width: 70px; height: 40px; border-radius: 20px;
@@ -199,7 +202,7 @@ canvas { display: block; }
 }
 #touch-sprint.active { background: rgba(68,170,255,0.5); }
 #touch-action-buttons {
-  position: absolute; right: 15px; bottom: 52%; pointer-events: auto; touch-action: none;
+  position: absolute; right: 15px; bottom: 200px; pointer-events: auto; touch-action: none;
   display: flex; flex-direction: column; gap: 10px;
 }
 .touch-btn {
@@ -209,12 +212,12 @@ canvas { display: block; }
   display: flex; align-items: center; justify-content: center;
   pointer-events: auto; touch-action: none; user-select: none;
 }
-.touch-btn:active { background: rgba(255,255,255,0.3); }
+.touch-btn.active { background: rgba(255,255,255,0.3); }
 @media (pointer: coarse) {
   #touch-controls { display: block; }
   #crosshair { display: none; }
-  #stamina-bar-bg { bottom: 80px; }
-  #interact-prompt { bottom: 140px; }
+  #stamina-bar-bg { bottom: 190px; }
+  #interact-prompt { bottom: 200px; }
 }
 </style>
 </head>
@@ -253,11 +256,17 @@ canvas { display: block; }
 </div>
 
 <div id="touch-controls">
-  <div class="joystick-zone joystick-zone-left" id="joystick-move-zone">
-    <div class="joystick-base" id="joystick-move-base"><div class="joystick-knob" id="joystick-move-knob"></div></div>
+  <div class="dpad dpad-left">
+    <div class="dpad-btn dpad-up" data-move="w">&#9650;</div>
+    <div class="dpad-btn dpad-left-btn" data-move="a">&#9664;</div>
+    <div class="dpad-btn dpad-right-btn" data-move="d">&#9654;</div>
+    <div class="dpad-btn dpad-down" data-move="s">&#9660;</div>
   </div>
-  <div class="joystick-zone joystick-zone-right" id="joystick-look-zone">
-    <div class="joystick-base" id="joystick-look-base"><div class="joystick-knob" id="joystick-look-knob"></div></div>
+  <div class="dpad dpad-right">
+    <div class="dpad-btn dpad-up" data-look="up">&#9650;</div>
+    <div class="dpad-btn dpad-left-btn" data-look="left">&#9664;</div>
+    <div class="dpad-btn dpad-right-btn" data-look="right">&#9654;</div>
+    <div class="dpad-btn dpad-down" data-look="down">&#9660;</div>
   </div>
   <div id="touch-sprint">RUN</div>
   <div id="touch-action-buttons">
@@ -1216,84 +1225,65 @@ function setupControls() {
 }
 
 function setupTouchControls() {
-  const touchControls = document.getElementById('touch-controls');
-  const LOOK_SENS = 4.0;
-  const JOYSTICK_DEAD = 0.15;
-
-  function createJoystick(zoneId, baseId, knobId, onMove, onEnd) {
-    const zone = document.getElementById(zoneId);
-    const base = document.getElementById(baseId);
-    const knob = document.getElementById(knobId);
-    let trackingId = null;
-    let originX = 0, originY = 0;
-    const RADIUS = 50;
-
-    zone.addEventListener('touchstart', (e) => {
-      if (trackingId !== null) return;
-      const t = e.changedTouches[0];
-      trackingId = t.identifier;
-      originX = t.clientX;
-      originY = t.clientY;
-      base.style.display = 'block';
-      knob.style.display = 'block';
-      base.style.left = (originX - 60) + 'px';
-      base.style.top = (originY - 60) + 'px';
-      knob.style.left = (originX - 25) + 'px';
-      knob.style.top = (originY - 25) + 'px';
-    }, { passive: true });
-
-    zone.addEventListener('touchmove', (e) => {
-      for (const t of e.changedTouches) {
-        if (t.identifier !== trackingId) continue;
-        let dx = t.clientX - originX;
-        let dy = t.clientY - originY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > RADIUS) { dx = dx / dist * RADIUS; dy = dy / dist * RADIUS; }
-        knob.style.left = (originX + dx - 25) + 'px';
-        knob.style.top = (originY + dy - 25) + 'px';
-        const nx = dx / RADIUS;
-        const ny = dy / RADIUS;
-        onMove(Math.abs(nx) > JOYSTICK_DEAD ? nx : 0, Math.abs(ny) > JOYSTICK_DEAD ? ny : 0);
-      }
-    }, { passive: true });
-
-    const endHandler = (e) => {
-      for (const t of e.changedTouches) {
-        if (t.identifier !== trackingId) continue;
-        trackingId = null;
-        base.style.display = 'none';
-        knob.style.display = 'none';
-        onEnd();
-      }
-    };
-    zone.addEventListener('touchend', endHandler, { passive: true });
-    zone.addEventListener('touchcancel', endHandler, { passive: true });
+  // Helper: bind touch hold to a button
+  function holdBtn(el, onDown, onUp) {
+    el.addEventListener('touchstart', (e) => { e.preventDefault(); el.classList.add('active'); onDown(); }, { passive: false });
+    el.addEventListener('touchend', (e) => { el.classList.remove('active'); onUp(); }, { passive: true });
+    el.addEventListener('touchcancel', (e) => { el.classList.remove('active'); onUp(); }, { passive: true });
   }
 
-  // Left joystick: movement
-  createJoystick('joystick-move-zone', 'joystick-move-base', 'joystick-move-knob',
-    (x, y) => { touchMoveX = x; touchMoveY = y; },
-    () => { touchMoveX = 0; touchMoveY = 0; }
-  );
+  // Movement D-pad (bottom-left)
+  document.querySelectorAll('[data-move]').forEach(btn => {
+    const dir = btn.dataset.move;
+    holdBtn(btn,
+      () => {
+        if (dir === 'w') touchMoveY = -1;
+        if (dir === 's') touchMoveY = 1;
+        if (dir === 'a') touchMoveX = -1;
+        if (dir === 'd') touchMoveX = 1;
+      },
+      () => {
+        if (dir === 'w' && touchMoveY < 0) touchMoveY = 0;
+        if (dir === 's' && touchMoveY > 0) touchMoveY = 0;
+        if (dir === 'a' && touchMoveX < 0) touchMoveX = 0;
+        if (dir === 'd' && touchMoveX > 0) touchMoveX = 0;
+      }
+    );
+  });
 
-  // Right joystick: look
-  createJoystick('joystick-look-zone', 'joystick-look-base', 'joystick-look-knob',
-    (x, y) => { touchLookX = x; touchLookY = y; },
-    () => { touchLookX = 0; touchLookY = 0; }
-  );
+  // Look D-pad (bottom-right)
+  document.querySelectorAll('[data-look]').forEach(btn => {
+    const dir = btn.dataset.look;
+    holdBtn(btn,
+      () => {
+        if (dir === 'up') touchLookY = -1;
+        if (dir === 'down') touchLookY = 1;
+        if (dir === 'left') touchLookX = -1;
+        if (dir === 'right') touchLookX = 1;
+      },
+      () => {
+        if (dir === 'up' && touchLookY < 0) touchLookY = 0;
+        if (dir === 'down' && touchLookY > 0) touchLookY = 0;
+        if (dir === 'left' && touchLookX < 0) touchLookX = 0;
+        if (dir === 'right' && touchLookX > 0) touchLookX = 0;
+      }
+    );
+  });
 
   // Sprint button
   const sprintBtn = document.getElementById('touch-sprint');
-  sprintBtn.addEventListener('touchstart', () => { touchSprinting = true; sprintBtn.classList.add('active'); }, { passive: true });
-  sprintBtn.addEventListener('touchend', () => { touchSprinting = false; sprintBtn.classList.remove('active'); }, { passive: true });
-  sprintBtn.addEventListener('touchcancel', () => { touchSprinting = false; sprintBtn.classList.remove('active'); }, { passive: true });
+  holdBtn(sprintBtn, () => { touchSprinting = true; }, () => { touchSprinting = false; });
 
   // Action buttons
-  document.getElementById('touch-flashlight').addEventListener('touchstart', () => {
+  document.getElementById('touch-flashlight').addEventListener('touchstart', (e) => {
+    e.preventDefault();
     flashlightOn = !flashlightOn;
     flashlight.visible = flashlightOn;
-  }, { passive: true });
-  document.getElementById('touch-escape').addEventListener('touchstart', () => { tryEscape(); }, { passive: true });
+  }, { passive: false });
+  document.getElementById('touch-escape').addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    tryEscape();
+  }, { passive: false });
 }
 
 // ============================================================
