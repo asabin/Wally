@@ -193,7 +193,7 @@ canvas { display: block; }
 .dpad-left-btn { left: 0; top: 54px; }
 .dpad-right-btn { right: 0; top: 54px; }
 #touch-sprint {
-  position: absolute; right: 185px; bottom: 65px;
+  position: absolute; right: 140px; bottom: 74px;
   width: 70px; height: 40px; border-radius: 20px;
   background: rgba(68,170,255,0.25); border: 2px solid rgba(68,170,255,0.4);
   color: #44aaff; font-size: 0.7em; font-family: 'Courier New', monospace;
@@ -201,18 +201,24 @@ canvas { display: block; }
   pointer-events: auto; touch-action: none; user-select: none;
 }
 #touch-sprint.active { background: rgba(68,170,255,0.5); }
-#touch-action-buttons {
-  position: absolute; right: 15px; bottom: 200px; pointer-events: auto; touch-action: none;
-  display: flex; flex-direction: column; gap: 10px;
-}
-.touch-btn {
+#touch-jump {
+  position: absolute; right: 50px; bottom: 190px;
   width: 50px; height: 50px; border-radius: 50%;
   background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.25);
   color: #aaa; font-size: 0.7em; font-family: 'Courier New', monospace;
   display: flex; align-items: center; justify-content: center;
   pointer-events: auto; touch-action: none; user-select: none;
 }
-.touch-btn.active { background: rgba(255,255,255,0.3); }
+#touch-jump.active { background: rgba(255,255,255,0.3); }
+#touch-escape {
+  position: absolute; right: 50px; bottom: 250px; display: none;
+  width: 50px; height: 50px; border-radius: 50%;
+  background: rgba(255,200,0,0.15); border: 2px solid rgba(255,200,0,0.4);
+  color: #ffcc44; font-size: 0.7em; font-family: 'Courier New', monospace;
+  align-items: center; justify-content: center;
+  pointer-events: auto; touch-action: none; user-select: none;
+}
+#touch-escape.active { background: rgba(255,200,0,0.4); }
 @media (pointer: coarse) {
   #touch-controls { display: block; }
   #crosshair { display: none; }
@@ -269,11 +275,8 @@ canvas { display: block; }
     <div class="dpad-btn dpad-down" data-look="down">&#9660;</div>
   </div>
   <div id="touch-sprint">RUN</div>
-  <div id="touch-action-buttons">
-    <div class="touch-btn" id="touch-jump">&#9650;</div>
-    <div class="touch-btn" id="touch-flashlight">F</div>
-    <div class="touch-btn" id="touch-escape">E</div>
-  </div>
+  <div id="touch-jump">&#9650;</div>
+  <div id="touch-escape">E</div>
 </div>
 
 <div id="jumpscare">
@@ -1438,11 +1441,6 @@ function setupTouchControls() {
     e.preventDefault();
     tryJump();
   }, { passive: false });
-  document.getElementById('touch-flashlight').addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    flashlightOn = !flashlightOn;
-    flashlight.visible = flashlightOn;
-  }, { passive: false });
   document.getElementById('touch-escape').addEventListener('touchstart', (e) => {
     e.preventDefault();
     tryEscape();
@@ -1724,11 +1722,10 @@ function updatePlayer(dt) {
 
   // Interact prompt
   const distToExit = new THREE.Vector2(playerPos.x - EXIT_POS.x, playerPos.z - EXIT_POS.z).length();
-  if (keysCollected >= CFG.KEY_COUNT && distToExit < 5) {
-    interactPrompt.style.opacity = '1';
-  } else {
-    interactPrompt.style.opacity = '0';
-  }
+  const nearExit = keysCollected >= CFG.KEY_COUNT && distToExit < 5;
+  interactPrompt.style.opacity = nearExit ? '1' : '0';
+  const escBtn = document.getElementById('touch-escape');
+  if (escBtn) escBtn.style.display = nearExit ? 'flex' : 'none';
 }
 
 function updateCompass() {
