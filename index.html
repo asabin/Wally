@@ -343,6 +343,7 @@ let colliders = [];   // {min:{x,z}, max:{x,z}}
 let poolAreas = [];   // same format, for visual only
 let ladderZones = []; // {x, z, height, radius} — climbable areas
 let platforms = [];   // {min:{x,z}, max:{x,z}, y} — walkable surfaces at height
+let slidePaths = [];  // sampled slide points [{x,y,z},...] for walking on slides
 let playerVelY = 0;   // vertical velocity for jumping
 let isJumping = false;
 let keyFragments = []; // {mesh, collected, light}
@@ -715,6 +716,7 @@ function buildEnvironment() {
   scene.add(tube1);
   scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve1, 48, 0.6, 8, false), channelMat));
   addSlidePillars(curve1, 7);
+  slidePaths.push(curve1.getPoints(60));
   addPool(-23, -1, 5, 4, 0.5);
 
   // ---- Slide Tower 2 (far NE) — sweeping curve ----
@@ -736,6 +738,7 @@ function buildEnvironment() {
   scene.add(tube2);
   scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve2, 40, 0.5, 8, false), channelMat));
   addSlidePillars(curve2, 6);
+  slidePaths.push(curve2.getPoints(50));
   addPool(25, -2, 4, 4, 0.5);
 
   // ---- Slide Tower 3 (south-west) — short twisty ----
@@ -755,6 +758,7 @@ function buildEnvironment() {
   scene.add(tube3);
   scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve3, 36, 0.45, 8, false), channelMat));
   addSlidePillars(curve3, 5);
+  slidePaths.push(curve3.getPoints(40));
   addPool(0, -24, 4, 3, 0.5);
 
   // ---- Buildings ----
@@ -852,7 +856,7 @@ function buildEnvironment() {
 // ============================================================
 function createKeys() {
   const keyPositions = [
-    new THREE.Vector3(-36, 1.2, 25),
+    new THREE.Vector3(-36, 1.2, 20),
     new THREE.Vector3(36, 1.2, -12),
     new THREE.Vector3(-24, 1.2, -28),
     new THREE.Vector3(28, 1.2, 25),
@@ -1434,8 +1438,26 @@ function updatePlayer(dt) {
     }
   }
 
-  // Platform check: find floor height at player position
+  // Slide surface check: walk on top of waterslide tubes
   let floorY = 0; // ground level
+  const slideWalkRadius = 2.0; // how close horizontally to count as "on" the slide
+  for (const pts of slidePaths) {
+    for (let i = 0; i < pts.length; i++) {
+      const sp = pts[i];
+      const dx = playerPos.x - sp.x;
+      const dz = playerPos.z - sp.z;
+      const hDist = Math.sqrt(dx * dx + dz * dz);
+      if (hDist < slideWalkRadius) {
+        const slideTopY = sp.y + 1.2; // tube radius offset so player stands on top
+        const feetY = playerPos.y - CFG.PLAYER_HEIGHT;
+        if (feetY >= slideTopY - 2 && feetY < slideTopY + 3) {
+          floorY = Math.max(floorY, slideTopY);
+        }
+      }
+    }
+  }
+
+  // Platform check: find floor height at player position
   for (const p of platforms) {
     if (playerPos.x > p.min.x && playerPos.x < p.max.x &&
         playerPos.z > p.min.z && playerPos.z < p.max.z) {
