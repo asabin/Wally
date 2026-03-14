@@ -193,7 +193,7 @@ canvas { display: block; }
 .dpad-left-btn { left: 0; top: 54px; }
 .dpad-right-btn { right: 0; top: 54px; }
 #touch-sprint {
-  position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%);
+  position: absolute; right: 185px; bottom: 65px;
   width: 70px; height: 40px; border-radius: 20px;
   background: rgba(68,170,255,0.25); border: 2px solid rgba(68,170,255,0.4);
   color: #44aaff; font-size: 0.7em; font-family: 'Courier New', monospace;
@@ -1468,6 +1468,7 @@ function triggerJumpscare() {
   gameState = 'JUMPSCARE';
   isPointerLocked = false;
   try { document.exitPointerLock(); } catch(e) {}
+  if (isTouchDevice) document.getElementById('touch-controls').style.display = 'none';
 
   playJumpscareSound();
 
@@ -1485,8 +1486,9 @@ function triggerJumpscare() {
 function triggerWin() {
   gameState = 'WON';
   isPointerLocked = false;
-  document.exitPointerLock();
+  try { document.exitPointerLock(); } catch(e) {}
   hud.style.display = 'none';
+  if (isTouchDevice) document.getElementById('touch-controls').style.display = 'none';
 
   playSound(440, 0.3, 0.15, 'sine');
   setTimeout(() => playSound(554, 0.3, 0.12, 'sine'), 200);
@@ -1509,6 +1511,9 @@ function resetGame() {
   camera.position.copy(playerPos);
   stamina = CFG.MAX_STAMINA;
   keys = { w:false, a:false, s:false, d:false, shift:false };
+  touchMoveX = 0; touchMoveY = 0;
+  touchLookX = 0; touchLookY = 0;
+  touchSprinting = false;
 
   // Reset keys
   keysCollected = 0;
@@ -1527,7 +1532,12 @@ function resetGame() {
   patrolIndex = 0;
   wallyTarget = patrolPoints[0].clone();
 
-  renderer.domElement.requestPointerLock();
+  if (isTouchDevice) {
+    document.getElementById('touch-controls').style.display = 'block';
+    isPointerLocked = true;
+  } else {
+    renderer.domElement.requestPointerLock();
+  }
 }
 
 // ============================================================
