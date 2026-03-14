@@ -346,6 +346,9 @@ let wallyLOSLostTimer = 0;
 let wallyCachedMeshes = null;
 let wallySpeed = CFG.WALLY_PATROL_SPEED;
 let patrolPoints, patrolIndex = 0;
+let wallyStuckTimer = 0;
+let wallyLastPos = new THREE.Vector2(0, 0);
+let wallySteerAngle = 0; // current steering offset when avoiding walls
 let gameState = 'MENU'; // MENU, PLAYING, JUMPSCARE, DEAD, WON
 let keys = { w:false, a:false, s:false, d:false, shift:false };
 let isPointerLocked = false;
@@ -865,10 +868,15 @@ function createKeys() {
     tooth2.position.set(0.1, -0.08, 0);
     group.add(tooth2);
 
+    // Add glow light so keys are visible in dark/foggy areas
+    const keyLight = new THREE.PointLight(0xffcc44, 1.2, 15);
+    keyLight.position.set(0, 0.5, 0);
+    group.add(keyLight);
+
     group.position.copy(pos);
     scene.add(group);
 
-    keyFragments.push({ mesh: group, collected: false, light: null, pos });
+    keyFragments.push({ mesh: group, collected: false, light: keyLight, pos });
   });
 }
 
@@ -1073,33 +1081,88 @@ function updateWally(dt) {
 }
 
 function moveWallyToward(tx, tz, dt) {
-  const dx = tx - wallyMesh.position.x;
-  const dz = tz - wallyMesh.position.z;
-  const dist = Math.sqrt(dx*dx + dz*dz);
+  const wx = wallyMesh.position.x, wz = wallyMesh.position.z;
+  const dx = tx - wx, dz = tz - wz;
+  const dist = Math.sqrt(dx * dx + dz * dz);
   if (dist < 0.1) return;
 
-  const nx = dx / dist;
-  const nz = dz / dist;
-  let newX = wallyMesh.position.x + nx * wallySpeed * dt;
-  let newZ = wallyMesh.position.z + nz * wallySpeed * dt;
+  const speed = wallySpeed * dt;
+  const R = 0.8; // Wally's collision radius
 
-  // Collision check for Wally
-  if (!checkCollision(newX, newZ, 0.8)) {
+  // Desired direction angle
+  const desiredAngle = Math.atan2(dx, dz);
+
+  // Stuck detection: if Wally barely moved, increment timer
+  const curPos = new THREE.Vector2(wx, wz);
+  const movedDist = curPos.distanceTo(wallyLastPos);
+  if (movedDist < speed * 0.3) {
+    wallyStuckTimer += dt;
+  } else {
+    wallyStuckTimer = Math.max(0, wallyStuckTimer - dt * 2);
+    wallySteerAngle = 0; // clear steering when moving freely
+  }
+  wallyLastPos.set(wx, wz);
+
+  // If stuck, pick a strong steering direction and commit to it
+  if (wallyStuckTimer > 0.4 && wallySteerAngle === 0) {
+    // Try both sides, pick whichever is clear
+    const testDist = 3;
+    const leftAngle = desiredAngle + Math.PI / 2;
+    const rightAngle = desiredAngle - Math.PI / 2;
+    const leftClear = !checkCollision(wx + Math.sin(leftAngle) * testDist, wz + Math.cos(leftAngle) * testDist, R);
+    const rightClear = !checkCollision(wx + Math.sin(rightAngle) * testDist, wz + Math.cos(rightAngle) * testDist, R);
+    if (leftClear && !rightClear) wallySteerAngle = Math.PI / 2;
+    else if (rightClear && !leftClear) wallySteerAngle = -Math.PI / 2;
+    else wallySteerAngle = (Math.random() < 0.5 ? 1 : -1) * Math.PI / 2;
+  }
+  // If very stuck, try bigger angles
+  if (wallyStuckTimer > 1.2) {
+    wallySteerAngle = (wallySteerAngle > 0 ? 1 : -1) * Math.PI * 0.75;
+  }
+  // If extremely stuck, pick new patrol target entirely
+  if (wallyStuckTimer > 2.5 && wallyState === 'PATROL') {
+    wallyStuckTimer = 0;
+    wallySteerAngle = 0;
+    patrolIndex = (patrolIndex + 1) % patrolPoints.length;
+    wallyTarget = patrolPoints[patrolIndex].clone();
+    return;
+  }
+
+  // Apply steering offset to desired angle
+  const moveAngle = desiredAngle + wallySteerAngle;
+  const nx = Math.sin(moveAngle);
+  const nz = Math.cos(moveAngle);
+
+  // Try multiple movement strategies
+  let moved = false;
+  // 1. Try full movement
+  let newX = wx + nx * speed, newZ = wz + nz * speed;
+  if (!checkCollision(newX, newZ, R)) {
     wallyMesh.position.x = newX;
     wallyMesh.position.z = newZ;
-  } else {
-    // Try sliding along axes
-    if (!checkCollision(newX, wallyMesh.position.z, 0.8)) {
+    moved = true;
+  }
+  // 2. Try axis-aligned sliding
+  if (!moved) {
+    if (!checkCollision(newX, wz, R)) {
       wallyMesh.position.x = newX;
-    } else if (!checkCollision(wallyMesh.position.x, newZ, 0.8)) {
+      moved = true;
+    } else if (!checkCollision(wx, newZ, R)) {
       wallyMesh.position.z = newZ;
-    } else {
-      // Try perpendicular directions
-      const perpX = wallyMesh.position.x + nz * wallySpeed * dt;
-      const perpZ = wallyMesh.position.z - nx * wallySpeed * dt;
-      if (!checkCollision(perpX, perpZ, 0.8)) {
-        wallyMesh.position.x = perpX;
-        wallyMesh.position.z = perpZ;
+      moved = true;
+    }
+  }
+  // 3. Try fanning out at multiple angles
+  if (!moved) {
+    for (const offset of [Math.PI/4, -Math.PI/4, Math.PI/2, -Math.PI/2, Math.PI*3/4, -Math.PI*3/4]) {
+      const a = desiredAngle + offset;
+      const fx = wx + Math.sin(a) * speed;
+      const fz = wz + Math.cos(a) * speed;
+      if (!checkCollision(fx, fz, R)) {
+        wallyMesh.position.x = fx;
+        wallyMesh.position.z = fz;
+        moved = true;
+        break;
       }
     }
   }
@@ -1531,6 +1594,9 @@ function resetGame() {
   wallyCachedMeshes = null;
   patrolIndex = 0;
   wallyTarget = patrolPoints[0].clone();
+  wallyStuckTimer = 0;
+  wallySteerAngle = 0;
+  wallyLastPos.set(0, -30);
 
   if (isTouchDevice) {
     document.getElementById('touch-controls').style.display = 'block';
