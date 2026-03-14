@@ -169,6 +169,53 @@ canvas { display: block; }
   90% { transform: translate(-10px, 10px); }
 }
 .screen-shake { animation: shake 0.5s ease-in-out; }
+
+/* Touch Controls */
+#touch-controls {
+  display: none; position: fixed; inset: 0; z-index: 15; pointer-events: none;
+}
+.joystick-zone {
+  position: absolute; bottom: 20px; width: 45%; height: 45%;
+  pointer-events: auto; touch-action: none;
+}
+.joystick-zone-left { left: 0; }
+.joystick-zone-right { right: 0; }
+.joystick-base {
+  position: absolute; width: 120px; height: 120px; border-radius: 50%;
+  background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.15);
+  display: none;
+}
+.joystick-knob {
+  position: absolute; width: 50px; height: 50px; border-radius: 50%;
+  background: rgba(255,255,255,0.25); display: none;
+}
+#touch-sprint {
+  position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%);
+  width: 70px; height: 40px; border-radius: 20px;
+  background: rgba(68,170,255,0.25); border: 2px solid rgba(68,170,255,0.4);
+  color: #44aaff; font-size: 0.7em; font-family: 'Courier New', monospace;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: auto; touch-action: none; user-select: none;
+}
+#touch-sprint.active { background: rgba(68,170,255,0.5); }
+#touch-action-buttons {
+  position: absolute; right: 15px; bottom: 52%; pointer-events: auto; touch-action: none;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.touch-btn {
+  width: 50px; height: 50px; border-radius: 50%;
+  background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.25);
+  color: #aaa; font-size: 0.7em; font-family: 'Courier New', monospace;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: auto; touch-action: none; user-select: none;
+}
+.touch-btn:active { background: rgba(255,255,255,0.3); }
+@media (pointer: coarse) {
+  #touch-controls { display: block; }
+  #crosshair { display: none; }
+  #stamina-bar-bg { bottom: 80px; }
+  #interact-prompt { bottom: 140px; }
+}
 </style>
 </head>
 <body>
@@ -176,14 +223,21 @@ canvas { display: block; }
 <div id="blocker">
   <h1>WALLY WALRUS'S WATERPARK</h1>
   <h2>"Come Swim With Wally... Forever"</h2>
-  <div class="instructions">
+  <div class="instructions" id="desktop-instructions">
     <span>WASD</span> — Move &nbsp;&nbsp; <span>MOUSE</span> — Look<br>
     <span>SHIFT</span> — Sprint &nbsp;&nbsp; <span>F</span> — Flashlight<br>
     <span>E</span> — Use Key at Exit Gate<br><br>
     Collect all 5 key fragments to unlock the exit.<br>
     Avoid Wally. If he catches you... it's over.
   </div>
-  <div class="start-msg">[ CLICK TO ENTER THE WATERPARK ]</div>
+  <div class="instructions" id="mobile-instructions" style="display:none">
+    <span>LEFT STICK</span> — Move &nbsp;&nbsp; <span>RIGHT STICK</span> — Look<br>
+    <span>RUN</span> — Sprint &nbsp;&nbsp; <span>F</span> — Flashlight<br>
+    <span>E</span> — Use Key at Exit Gate<br><br>
+    Collect all 5 key fragments to unlock the exit.<br>
+    Avoid Wally. If he catches you... it's over.
+  </div>
+  <div class="start-msg">[ TAP TO ENTER THE WATERPARK ]</div>
 </div>
 
 <div id="hud">
@@ -196,6 +250,20 @@ canvas { display: block; }
     <div id="compass-label">Key</div>
   </div>
   <div id="interact-prompt">Press E to Escape!</div>
+</div>
+
+<div id="touch-controls">
+  <div class="joystick-zone joystick-zone-left" id="joystick-move-zone">
+    <div class="joystick-base" id="joystick-move-base"><div class="joystick-knob" id="joystick-move-knob"></div></div>
+  </div>
+  <div class="joystick-zone joystick-zone-right" id="joystick-look-zone">
+    <div class="joystick-base" id="joystick-look-base"><div class="joystick-knob" id="joystick-look-knob"></div></div>
+  </div>
+  <div id="touch-sprint">RUN</div>
+  <div id="touch-action-buttons">
+    <div class="touch-btn" id="touch-flashlight">F</div>
+    <div class="touch-btn" id="touch-escape">E</div>
+  </div>
 </div>
 
 <div id="jumpscare">
@@ -272,6 +340,10 @@ let patrolPoints, patrolIndex = 0;
 let gameState = 'MENU'; // MENU, PLAYING, JUMPSCARE, DEAD, WON
 let keys = { w:false, a:false, s:false, d:false, shift:false };
 let isPointerLocked = false;
+let isTouchDevice = false;
+let touchMoveX = 0, touchMoveY = 0; // -1 to 1
+let touchLookX = 0, touchLookY = 0; // -1 to 1
+let touchSprinting = false;
 let flickeringLights = [];
 let audioCtx, audioStarted = false;
 let ambientGain, heartbeatOsc, heartbeatGain;
@@ -915,7 +987,7 @@ function updateWally(dt) {
         }
       }
       // Sprint detection (longer range, requires LOS)
-      if (keys.shift && distToPlayer < CFG.WALLY_DETECT_RANGE * 1.5 && canWallySeePlayer()) {
+      if ((keys.shift || touchSprinting) && distToPlayer < CFG.WALLY_DETECT_RANGE * 1.5 && canWallySeePlayer()) {
         wallyState = 'CHASE';
         playSound(80, 0.5, 0.3, 'sawtooth');
       }
@@ -1133,6 +1205,95 @@ function setupControls() {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
+
+  // Touch device detection
+  isTouchDevice = matchMedia('(pointer: coarse)').matches;
+  if (isTouchDevice) {
+    document.getElementById('desktop-instructions').style.display = 'none';
+    document.getElementById('mobile-instructions').style.display = 'block';
+    setupTouchControls();
+  }
+}
+
+function setupTouchControls() {
+  const touchControls = document.getElementById('touch-controls');
+  const LOOK_SENS = 4.0;
+  const JOYSTICK_DEAD = 0.15;
+
+  function createJoystick(zoneId, baseId, knobId, onMove, onEnd) {
+    const zone = document.getElementById(zoneId);
+    const base = document.getElementById(baseId);
+    const knob = document.getElementById(knobId);
+    let trackingId = null;
+    let originX = 0, originY = 0;
+    const RADIUS = 50;
+
+    zone.addEventListener('touchstart', (e) => {
+      if (trackingId !== null) return;
+      const t = e.changedTouches[0];
+      trackingId = t.identifier;
+      originX = t.clientX;
+      originY = t.clientY;
+      base.style.display = 'block';
+      knob.style.display = 'block';
+      base.style.left = (originX - 60) + 'px';
+      base.style.top = (originY - 60) + 'px';
+      knob.style.left = (originX - 25) + 'px';
+      knob.style.top = (originY - 25) + 'px';
+    }, { passive: true });
+
+    zone.addEventListener('touchmove', (e) => {
+      for (const t of e.changedTouches) {
+        if (t.identifier !== trackingId) continue;
+        let dx = t.clientX - originX;
+        let dy = t.clientY - originY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > RADIUS) { dx = dx / dist * RADIUS; dy = dy / dist * RADIUS; }
+        knob.style.left = (originX + dx - 25) + 'px';
+        knob.style.top = (originY + dy - 25) + 'px';
+        const nx = dx / RADIUS;
+        const ny = dy / RADIUS;
+        onMove(Math.abs(nx) > JOYSTICK_DEAD ? nx : 0, Math.abs(ny) > JOYSTICK_DEAD ? ny : 0);
+      }
+    }, { passive: true });
+
+    const endHandler = (e) => {
+      for (const t of e.changedTouches) {
+        if (t.identifier !== trackingId) continue;
+        trackingId = null;
+        base.style.display = 'none';
+        knob.style.display = 'none';
+        onEnd();
+      }
+    };
+    zone.addEventListener('touchend', endHandler, { passive: true });
+    zone.addEventListener('touchcancel', endHandler, { passive: true });
+  }
+
+  // Left joystick: movement
+  createJoystick('joystick-move-zone', 'joystick-move-base', 'joystick-move-knob',
+    (x, y) => { touchMoveX = x; touchMoveY = y; },
+    () => { touchMoveX = 0; touchMoveY = 0; }
+  );
+
+  // Right joystick: look
+  createJoystick('joystick-look-zone', 'joystick-look-base', 'joystick-look-knob',
+    (x, y) => { touchLookX = x; touchLookY = y; },
+    () => { touchLookX = 0; touchLookY = 0; }
+  );
+
+  // Sprint button
+  const sprintBtn = document.getElementById('touch-sprint');
+  sprintBtn.addEventListener('touchstart', () => { touchSprinting = true; sprintBtn.classList.add('active'); }, { passive: true });
+  sprintBtn.addEventListener('touchend', () => { touchSprinting = false; sprintBtn.classList.remove('active'); }, { passive: true });
+  sprintBtn.addEventListener('touchcancel', () => { touchSprinting = false; sprintBtn.classList.remove('active'); }, { passive: true });
+
+  // Action buttons
+  document.getElementById('touch-flashlight').addEventListener('touchstart', () => {
+    flashlightOn = !flashlightOn;
+    flashlight.visible = flashlightOn;
+  }, { passive: true });
+  document.getElementById('touch-escape').addEventListener('touchstart', () => { tryEscape(); }, { passive: true });
 }
 
 // ============================================================
@@ -1151,22 +1312,31 @@ function updatePlayer(dt) {
   right.y = 0;
   right.normalize();
 
+  // Touch look (right joystick)
+  if (isTouchDevice && (touchLookX !== 0 || touchLookY !== 0)) {
+    playerEuler.y -= touchLookX * 4.0 * dt;
+    playerEuler.x -= touchLookY * 3.0 * dt;
+    playerEuler.x = Math.max(-Math.PI * 0.45, Math.min(Math.PI * 0.45, playerEuler.x));
+    camera.quaternion.setFromEuler(playerEuler);
+  }
+
   const moveDir = new THREE.Vector3();
-  if (keys.w) moveDir.add(forward);
-  if (keys.s) moveDir.sub(forward);
-  if (keys.d) moveDir.add(right);
-  if (keys.a) moveDir.sub(right);
+  if (keys.w || touchMoveY < 0) moveDir.addScaledVector(forward, keys.w ? 1 : -touchMoveY);
+  if (keys.s || touchMoveY > 0) moveDir.addScaledVector(forward, keys.s ? -1 : -touchMoveY);
+  if (keys.d || touchMoveX > 0) moveDir.addScaledVector(right, keys.d ? 1 : touchMoveX);
+  if (keys.a || touchMoveX < 0) moveDir.addScaledVector(right, keys.a ? -1 : touchMoveX);
 
   const isMoving = moveDir.length() > 0;
   if (isMoving) moveDir.normalize();
 
   // Sprint / stamina
   let speed = CFG.PLAYER_SPEED;
-  if (keys.shift && stamina > 0 && isMoving) {
+  const wantsSprint = keys.shift || touchSprinting;
+  if (wantsSprint && stamina > 0 && isMoving) {
     speed = CFG.SPRINT_SPEED;
     stamina -= CFG.STAMINA_DRAIN * dt;
     if (stamina < 0) stamina = 0;
-  } else if (!keys.shift || !isMoving) {
+  } else if (!wantsSprint || !isMoving) {
     stamina += CFG.STAMINA_REGEN * dt;
     if (stamina > CFG.MAX_STAMINA) stamina = CFG.MAX_STAMINA;
   }
@@ -1190,12 +1360,12 @@ function updatePlayer(dt) {
 
   // Head bob
   if (isMoving) {
-    headBob += dt * (keys.shift ? 14 : 10);
+    headBob += dt * (wantsSprint ? 14 : 10);
     playerPos.y = CFG.PLAYER_HEIGHT + Math.sin(headBob) * 0.06;
 
     // Footstep sounds
     footstepTimer += dt;
-    const stepInterval = keys.shift ? 0.28 : 0.45;
+    const stepInterval = wantsSprint ? 0.28 : 0.45;
     if (footstepTimer > stepInterval) {
       footstepTimer = 0;
       playFootstep();
@@ -1296,7 +1466,12 @@ function startGame() {
   gameState = 'PLAYING';
   blocker.style.display = 'none';
   hud.style.display = 'block';
-  renderer.domElement.requestPointerLock();
+  if (isTouchDevice) {
+    document.getElementById('touch-controls').style.display = 'block';
+    isPointerLocked = true; // fake it so updatePlayer runs
+  } else {
+    renderer.domElement.requestPointerLock();
+  }
 }
 
 function triggerJumpscare() {
