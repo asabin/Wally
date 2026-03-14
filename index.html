@@ -686,64 +686,64 @@ function buildEnvironment() {
     transparent: true, opacity: 0.7,
   });
 
-  // ---- Slide Tower 1 (NW) — spiral descent ----
-  addBox(-30, 0, -18, 7, 14, 7, wallMat);
-  addStairs(-30, -18, 14, 'z');
+  // ---- Slide Tower 1 (far NW) — spiral descent ----
+  addBox(-38, 0, -22, 7, 14, 7, wallMat);
+  addStairs(-38, -22, 14, 'z');
   const curve1 = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-30, 13, -18),
-    new THREE.Vector3(-25, 12, -14),
-    new THREE.Vector3(-20, 10.5, -16),
-    new THREE.Vector3(-22, 9, -11),
-    new THREE.Vector3(-18, 7.5, -8),
-    new THREE.Vector3(-14, 6, -12),
-    new THREE.Vector3(-16, 4.5, -6),
-    new THREE.Vector3(-14, 3, -3),
-    new THREE.Vector3(-15, 1.5, 0),
-    new THREE.Vector3(-15, 0.5, 2),
+    new THREE.Vector3(-38, 13, -22),
+    new THREE.Vector3(-33, 12, -18),
+    new THREE.Vector3(-28, 10.5, -20),
+    new THREE.Vector3(-30, 9, -15),
+    new THREE.Vector3(-26, 7.5, -12),
+    new THREE.Vector3(-22, 6, -16),
+    new THREE.Vector3(-24, 4.5, -10),
+    new THREE.Vector3(-22, 3, -7),
+    new THREE.Vector3(-23, 1.5, -4),
+    new THREE.Vector3(-23, 0.5, -2),
   ]);
   const tube1 = new THREE.Mesh(new THREE.TubeGeometry(curve1, 48, 1.2, 8, false), slideMat);
   scene.add(tube1);
   scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve1, 48, 0.6, 8, false), channelMat));
   addSlidePillars(curve1, 7);
-  addPool(-15, 3, 5, 4, 0.5);
+  addPool(-23, -1, 5, 4, 0.5);
 
-  // ---- Slide Tower 2 (NE) — sweeping curve ----
-  addBox(28, 0, -22, 6, 11, 6, wallMat);
-  addStairs(28, -22, 11, 'z');
+  // ---- Slide Tower 2 (far NE) — sweeping curve ----
+  addBox(35, 0, -25, 6, 11, 6, wallMat);
+  addStairs(35, -25, 11, 'z');
   const curve2 = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(28, 10, -22),
-    new THREE.Vector3(24, 9, -18),
-    new THREE.Vector3(20, 8, -20),
-    new THREE.Vector3(16, 7, -16),
-    new THREE.Vector3(19, 5.5, -12),
-    new THREE.Vector3(17, 4, -8),
-    new THREE.Vector3(20, 2.5, -5),
-    new THREE.Vector3(19, 1.2, -2),
-    new THREE.Vector3(18, 0.5, 0),
+    new THREE.Vector3(35, 10, -25),
+    new THREE.Vector3(31, 9, -21),
+    new THREE.Vector3(27, 8, -23),
+    new THREE.Vector3(23, 7, -19),
+    new THREE.Vector3(26, 5.5, -15),
+    new THREE.Vector3(24, 4, -11),
+    new THREE.Vector3(27, 2.5, -8),
+    new THREE.Vector3(26, 1.2, -5),
+    new THREE.Vector3(25, 0.5, -3),
   ]);
   const tube2 = new THREE.Mesh(new THREE.TubeGeometry(curve2, 40, 1.0, 8, false), slideMat2);
   scene.add(tube2);
   scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve2, 40, 0.5, 8, false), channelMat));
   addSlidePillars(curve2, 6);
-  addPool(18, 1, 4, 4, 0.5);
+  addPool(25, -2, 4, 4, 0.5);
 
-  // ---- Slide Tower 3 (center-west) — short twisty ----
-  addBox(-18, 0, -30, 5, 9, 5, wallMat);
-  addStairs(-18, -30, 9, 'x');
+  // ---- Slide Tower 3 (south-west) — short twisty ----
+  addBox(-10, 0, -38, 5, 9, 5, wallMat);
+  addStairs(-10, -38, 9, 'x');
   const curve3 = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-18, 8, -30),
-    new THREE.Vector3(-14, 7, -27),
-    new THREE.Vector3(-10, 6, -29),
-    new THREE.Vector3(-12, 4.5, -25),
-    new THREE.Vector3(-9, 3, -22),
-    new THREE.Vector3(-8, 1.5, -19),
-    new THREE.Vector3(-8, 0.5, -17),
+    new THREE.Vector3(-10, 8, -38),
+    new THREE.Vector3(-6, 7, -35),
+    new THREE.Vector3(-2, 6, -37),
+    new THREE.Vector3(-4, 4.5, -33),
+    new THREE.Vector3(-1, 3, -30),
+    new THREE.Vector3(0, 1.5, -27),
+    new THREE.Vector3(0, 0.5, -25),
   ]);
   const tube3 = new THREE.Mesh(new THREE.TubeGeometry(curve3, 36, 0.9, 8, false), slideMat);
   scene.add(tube3);
   scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve3, 36, 0.45, 8, false), channelMat));
   addSlidePillars(curve3, 5);
-  addPool(-8, -16, 4, 3, 0.5);
+  addPool(0, -24, 4, 3, 0.5);
 
   // ---- Buildings ----
   // Change Room 1
@@ -823,7 +823,7 @@ function buildEnvironment() {
     wall.position.set(mx, 0.6, mz);
     wall.rotation.y = -Math.atan2(dz, dx);
     scene.add(wall);
-    colliders.push({ min:{x:mx-len/2-0.5,z:mz-0.5}, max:{x:mx+len/2+0.5,z:mz+0.5} });
+    // No collider for lazy river walls — they block Wally in tight corridors
   }
   // Lazy river water
   const riverWater = new THREE.Mesh(
@@ -963,15 +963,18 @@ function createWally() {
   wallyState = 'PATROL';
   wallyLostTimer = 0;
 
+  // Patrol points in open areas away from tight gaps
   patrolPoints = [
-    new THREE.Vector3(-20, 0, -15),
-    new THREE.Vector3(-20, 0, 15),
-    new THREE.Vector3(20, 0, 15),
-    new THREE.Vector3(20, 0, -15),
-    new THREE.Vector3(0, 0, -30),
-    new THREE.Vector3(-30, 0, 0),
-    new THREE.Vector3(30, 0, -25),
-    new THREE.Vector3(-10, 0, 30),
+    new THREE.Vector3(-12, 0, -10),
+    new THREE.Vector3(-12, 0, 15),
+    new THREE.Vector3(12, 0, 15),
+    new THREE.Vector3(12, 0, -10),
+    new THREE.Vector3(0, 0, -25),
+    new THREE.Vector3(-15, 0, 35),
+    new THREE.Vector3(30, 0, -10),
+    new THREE.Vector3(-8, 0, 30),
+    new THREE.Vector3(15, 0, 30),
+    new THREE.Vector3(0, 0, 40),
   ];
   wallyTarget = patrolPoints[0].clone();
 }
@@ -1090,40 +1093,24 @@ function moveWallyToward(tx, tz, dt) {
   if (dist < 0.1) return;
 
   const speed = wallySpeed * dt;
-  const R = 0.8; // Wally's collision radius
+  const R = 1.5; // Wally's collision radius (wider to avoid tight gaps)
+  const LOOKAHEAD = 2.5; // probe distance ahead
 
-  // Desired direction angle
+  // Desired direction
   const desiredAngle = Math.atan2(dx, dz);
 
-  // Stuck detection: if Wally barely moved, increment timer
+  // Stuck detection
   const curPos = new THREE.Vector2(wx, wz);
-  const movedDist = curPos.distanceTo(wallyLastPos);
-  if (movedDist < speed * 0.3) {
+  if (curPos.distanceTo(wallyLastPos) < speed * 0.2) {
     wallyStuckTimer += dt;
   } else {
-    wallyStuckTimer = Math.max(0, wallyStuckTimer - dt * 2);
-    wallySteerAngle = 0; // clear steering when moving freely
+    wallyStuckTimer = 0;
+    wallySteerAngle = 0;
   }
   wallyLastPos.set(wx, wz);
 
-  // If stuck, pick a strong steering direction and commit to it
-  if (wallyStuckTimer > 0.4 && wallySteerAngle === 0) {
-    // Try both sides, pick whichever is clear
-    const testDist = 3;
-    const leftAngle = desiredAngle + Math.PI / 2;
-    const rightAngle = desiredAngle - Math.PI / 2;
-    const leftClear = !checkCollision(wx + Math.sin(leftAngle) * testDist, wz + Math.cos(leftAngle) * testDist, R);
-    const rightClear = !checkCollision(wx + Math.sin(rightAngle) * testDist, wz + Math.cos(rightAngle) * testDist, R);
-    if (leftClear && !rightClear) wallySteerAngle = Math.PI / 2;
-    else if (rightClear && !leftClear) wallySteerAngle = -Math.PI / 2;
-    else wallySteerAngle = (Math.random() < 0.5 ? 1 : -1) * Math.PI / 2;
-  }
-  // If very stuck, try bigger angles
-  if (wallyStuckTimer > 1.2) {
-    wallySteerAngle = (wallySteerAngle > 0 ? 1 : -1) * Math.PI * 0.75;
-  }
-  // If extremely stuck, pick new patrol target entirely
-  if (wallyStuckTimer > 2.5 && wallyState === 'PATROL') {
+  // If stuck too long during patrol, skip to next waypoint
+  if (wallyStuckTimer > 1.5 && wallyState === 'PATROL') {
     wallyStuckTimer = 0;
     wallySteerAngle = 0;
     patrolIndex = (patrolIndex + 1) % patrolPoints.length;
@@ -1131,44 +1118,57 @@ function moveWallyToward(tx, tz, dt) {
     return;
   }
 
-  // Apply steering offset to desired angle
-  const moveAngle = desiredAngle + wallySteerAngle;
-  const nx = Math.sin(moveAngle);
-  const nz = Math.cos(moveAngle);
+  // Proactive wall detection: look ahead in desired direction
+  let moveAngle = desiredAngle;
+  const aheadX = wx + Math.sin(desiredAngle) * LOOKAHEAD;
+  const aheadZ = wz + Math.cos(desiredAngle) * LOOKAHEAD;
+  const blocked = checkCollision(aheadX, aheadZ, R);
 
-  // Try multiple movement strategies
-  let moved = false;
-  // 1. Try full movement
-  let newX = wx + nx * speed, newZ = wz + nz * speed;
+  if (blocked || wallySteerAngle !== 0) {
+    // Find the best clear direction by scanning angles
+    if (wallySteerAngle === 0) {
+      // Pick initial steer direction: test left vs right
+      let bestAngle = Math.PI; // worst case: reverse
+      let bestScore = -Infinity;
+      for (let i = 1; i <= 8; i++) {
+        for (const sign of [1, -1]) {
+          const testAngle = desiredAngle + sign * (Math.PI * i / 8);
+          const testX = wx + Math.sin(testAngle) * LOOKAHEAD;
+          const testZ = wz + Math.cos(testAngle) * LOOKAHEAD;
+          if (!checkCollision(testX, testZ, R)) {
+            // Score: prefer angles closer to desired direction
+            const score = 8 - i;
+            if (score > bestScore) {
+              bestScore = score;
+              bestAngle = sign * (Math.PI * i / 8);
+            }
+          }
+        }
+        if (bestScore > -Infinity) break; // found a clear direction
+      }
+      wallySteerAngle = bestAngle;
+    }
+    moveAngle = desiredAngle + wallySteerAngle;
+
+    // Check if original direction is now clear — stop steering
+    if (!checkCollision(aheadX, aheadZ, R) && wallyStuckTimer === 0) {
+      wallySteerAngle = 0;
+      moveAngle = desiredAngle;
+    }
+  }
+
+  // Move
+  const nx = Math.sin(moveAngle), nz = Math.cos(moveAngle);
+  const newX = wx + nx * speed, newZ = wz + nz * speed;
   if (!checkCollision(newX, newZ, R)) {
     wallyMesh.position.x = newX;
     wallyMesh.position.z = newZ;
-    moved = true;
+  } else if (!checkCollision(newX, wz, R)) {
+    wallyMesh.position.x = newX; // slide X
+  } else if (!checkCollision(wx, newZ, R)) {
+    wallyMesh.position.z = newZ; // slide Z
   }
-  // 2. Try axis-aligned sliding
-  if (!moved) {
-    if (!checkCollision(newX, wz, R)) {
-      wallyMesh.position.x = newX;
-      moved = true;
-    } else if (!checkCollision(wx, newZ, R)) {
-      wallyMesh.position.z = newZ;
-      moved = true;
-    }
-  }
-  // 3. Try fanning out at multiple angles
-  if (!moved) {
-    for (const offset of [Math.PI/4, -Math.PI/4, Math.PI/2, -Math.PI/2, Math.PI*3/4, -Math.PI*3/4]) {
-      const a = desiredAngle + offset;
-      const fx = wx + Math.sin(a) * speed;
-      const fz = wz + Math.cos(a) * speed;
-      if (!checkCollision(fx, fz, R)) {
-        wallyMesh.position.x = fx;
-        wallyMesh.position.z = fz;
-        moved = true;
-        break;
-      }
-    }
-  }
+  // else: completely blocked this frame, stuck timer will handle
 
   // Keep in bounds
   const hs = CFG.MAP_SIZE / 2 - 1;
