@@ -870,6 +870,9 @@ function buildEnvironment() {
   colliders.push({ min:{x:-45, z:-13}, max:{x:-39, z:-12.5}, topY: 3.5 });
   // Right wall collider (north face, z = -10 + 2.5 = -7.5)
   colliders.push({ min:{x:-45, z:-7.5}, max:{x:-39, z:-7}, topY: 3.5 });
+  // ---- SECRET DEVELOPER ROOM (Easter Egg) ----
+  const secretRoomMat = new THREE.MeshPhongMaterial({ color: 0x2a2030, map: wallTex });
+
   // Back wall: visual-only fake wall (no collider) — walk through to secret room!
   const fakeWall = new THREE.Mesh(
     new THREE.PlaneGeometry(5, 3.5),
@@ -886,9 +889,6 @@ function buildEnvironment() {
   fakeWallInner.position.set(-45, 1.75, -10);
   fakeWallInner.rotation.y = -Math.PI / 2; // face west (into room)
   scene.add(fakeWallInner);
-
-  // ---- SECRET DEVELOPER ROOM (Easter Egg) ----
-  const secretRoomMat = new THREE.MeshPhongMaterial({ color: 0x2a2030, map: wallTex });
 
   // Room walls behind the shed (x: -45 to -54, z: -13 to -7)
   // Back wall
