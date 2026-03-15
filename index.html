@@ -229,7 +229,7 @@ canvas { display: block; }
 </head>
 <body>
 
-<div id="blocker" onclick="if(gameState==='MENU')startGame();" ontouchend="if(gameState==='MENU')startGame();">
+<div id="blocker" onclick="if(gameState==='MENU')startGame();" ontouchend="event.preventDefault();if(gameState==='MENU')startGame();">
   <h1>WALLY WALRUS'S WATERPARK</h1>
   <h2>"Come Swim With Wally... Forever"</h2>
   <div class="instructions" id="desktop-instructions">
