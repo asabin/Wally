@@ -229,7 +229,7 @@ canvas { display: block; }
 </head>
 <body>
 
-<div id="blocker">
+<div id="blocker" onclick="if(gameState==='MENU')startGame();" ontouchend="if(gameState==='MENU')startGame();">
   <h1>WALLY WALRUS'S WATERPARK</h1>
   <h2>"Come Swim With Wally... Forever"</h2>
   <div class="instructions" id="desktop-instructions">
@@ -247,6 +247,8 @@ canvas { display: block; }
   </div>
   <div class="start-msg">[ TAP TO ENTER THE WATERPARK ]</div>
 </div>
+
+<div id="pause-btn" onclick="event.stopPropagation();togglePause();" ontouchstart="event.preventDefault();event.stopPropagation();togglePause();" style="display:none;position:fixed;top:15px;left:50%;transform:translateX(-50%);width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.5);font-size:1.4em;align-items:center;justify-content:center;cursor:pointer;user-select:none;touch-action:none;z-index:50;font-family:'Courier New',monospace;">☰</div>
 
 <div id="hud">
   <div id="crosshair"></div>
@@ -295,12 +297,18 @@ canvas { display: block; }
   </div>
 </div>
 
-<div id="gameover">
+<div id="pause-screen" style="display:none; position:fixed; inset:0; z-index:150; background:rgba(0,0,0,0.8); align-items:center; justify-content:center; flex-direction:column; font-family:'Courier New',monospace;">
+  <h1 style="color:#ffcc44; font-size:2.5em; margin-bottom:30px; text-shadow:0 0 20px #ffaa00;">PAUSED</h1>
+  <div id="pause-resume" onclick="event.stopPropagation();resumeGame();" ontouchstart="event.preventDefault();event.stopPropagation();resumeGame();" style="color:#44ff88; font-size:1.5em; padding:15px 40px; border:2px solid #44ff88; border-radius:10px; cursor:pointer; margin:10px; text-align:center; user-select:none;">RESUME</div>
+  <div id="pause-restart" onclick="event.stopPropagation();document.getElementById('pause-screen').style.display='none';resetGame();" ontouchstart="event.preventDefault();event.stopPropagation();document.getElementById('pause-screen').style.display='none';resetGame();" style="color:#ff4466; font-size:1.5em; padding:15px 40px; border:2px solid #ff4466; border-radius:10px; cursor:pointer; margin:10px; text-align:center; user-select:none;">START OVER</div>
+</div>
+
+<div id="gameover" onclick="if(gameState==='DEAD')resetGame();" ontouchend="if(gameState==='DEAD')resetGame();">
   <h1>YOU DIDN'T ESCAPE</h1>
   <p>Wally got you. [ Click to try again ]</p>
 </div>
 
-<div id="winscreen">
+<div id="winscreen" onclick="if(gameState==='WON')resetGame();" ontouchend="if(gameState==='WON')resetGame();">
   <h1>YOU ESCAPED!</h1>
   <p>You survived Wally Walrus's Waterpark.</p>
   <p class="restart">[ Click to play again ]</p>
@@ -554,6 +562,11 @@ function initScene() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = false;
   document.body.appendChild(renderer.domElement);
+  renderer.domElement.addEventListener('click', () => {
+    if (gameState === 'PLAYING' && !isPointerLocked) {
+      renderer.domElement.requestPointerLock();
+    }
+  });
 
   clock = new THREE.Clock();
 
@@ -1420,7 +1433,10 @@ function checkCollision(x, z, radius, feetY) {
 // CONTROLS
 // ============================================================
 function setupControls() {
-  document.addEventListener('click', () => {
+  document.addEventListener('click', (e) => {
+    // Ignore clicks on pause-related elements
+    if (e.target.closest('#pause-btn, #pause-screen')) return;
+    if (gameState === 'PAUSED') return;
     if (gameState === 'MENU') {
       startGame();
     } else if (gameState === 'DEAD') {
@@ -1457,6 +1473,7 @@ function setupControls() {
     }
     if (k === 'e') tryEscape();
     if (k === ' ') { e.preventDefault(); tryJump(); }
+    if (k === 'escape') { e.preventDefault(); togglePause(); }
   });
 
   document.addEventListener('keyup', (e) => {
@@ -1910,6 +1927,7 @@ function startGame() {
   gameState = 'PLAYING';
   blocker.style.display = 'none';
   hud.style.display = 'block';
+  document.getElementById('pause-btn').style.display = 'flex';
   if (isTouchDevice) {
     document.getElementById('touch-controls').style.display = 'block';
     isPointerLocked = true; // fake it so updatePlayer runs
@@ -1952,11 +1970,35 @@ function triggerWin() {
   winscreenEl.style.display = 'flex';
 }
 
+function togglePause() {
+  if (gameState === 'PLAYING') {
+    gameState = 'PAUSED';
+    document.getElementById('pause-screen').style.display = 'flex';
+    document.getElementById('hud').style.pointerEvents = 'none';
+    try { document.exitPointerLock(); } catch(e) {}
+  } else if (gameState === 'PAUSED') {
+    resumeGame();
+  }
+}
+
+function resumeGame() {
+  gameState = 'PLAYING';
+  document.getElementById('pause-screen').style.display = 'none';
+  document.getElementById('hud').style.pointerEvents = '';
+  if (!isTouchDevice) {
+    renderer.domElement.requestPointerLock();
+  } else {
+    isPointerLocked = true;
+  }
+}
+
 function resetGame() {
   gameState = 'PLAYING';
   gameoverEl.style.display = 'none';
   winscreenEl.style.display = 'none';
+  document.getElementById('pause-screen').style.display = 'none';
   hud.style.display = 'block';
+  document.getElementById('pause-btn').style.display = 'flex';
 
   // Reset player
   playerPos.set(0, CFG.PLAYER_HEIGHT, 45);
