@@ -246,7 +246,7 @@ canvas { display: block; }
     Avoid Wally. If he catches you... it's over.
   </div>
   <div class="start-msg">[ TAP TO ENTER THE WATERPARK ]</div>
-  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.2);font-size:0.7em;">v1.4</div>
+  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.2);font-size:0.7em;">v1.5</div>
 </div>
 
 <div id="pause-btn" onclick="event.stopPropagation();togglePause();" ontouchstart="event.preventDefault();event.stopPropagation();togglePause();" style="display:none;position:fixed;top:15px;left:50%;transform:translateX(-50%);width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.5);font-size:1.4em;align-items:center;justify-content:center;cursor:pointer;user-select:none;touch-action:none;z-index:50;font-family:'Courier New',monospace;">☰</div>
@@ -865,12 +865,12 @@ function buildEnvironment() {
   addBox(38, 0, 5, 7, 4, 6, bldgMat);
   // Storage shed (visual only, custom colliders to leave back wall passable)
   addBox(-42, 0, -10, 6, 3.5, 5, bldgMat, false); // visual, no collider
-  // Front wall collider (east face, x = -42 + 3 = -39)
+  // Front wall collider (east face)
   colliders.push({ min:{x:-39.5, z:-12.5}, max:{x:-39, z:-7.5}, topY: 3.5 });
-  // Left wall collider (south face, z = -10 - 2.5 = -12.5)
-  colliders.push({ min:{x:-45, z:-13}, max:{x:-39, z:-12.5}, topY: 3.5 });
-  // Right wall collider (north face, z = -10 + 2.5 = -7.5)
-  colliders.push({ min:{x:-45, z:-7.5}, max:{x:-39, z:-7}, topY: 3.5 });
+  // Left wall collider (south face) — pulled back from x=-45 to x=-43 to widen secret room entrance
+  colliders.push({ min:{x:-43, z:-13}, max:{x:-39, z:-12.5}, topY: 3.5 });
+  // Right wall collider (north face) — pulled back from x=-45 to x=-43 to widen secret room entrance
+  colliders.push({ min:{x:-43, z:-7.5}, max:{x:-39, z:-7}, topY: 3.5 });
   // ---- SECRET DEVELOPER ROOM (Easter Egg) ----
   const secretRoomMat = new THREE.MeshPhongMaterial({ color: 0x2a2030, map: wallTex });
 
@@ -894,10 +894,10 @@ function buildEnvironment() {
   // Room walls behind the shed (x: -45 to -54, z: -13 to -7)
   // Back wall
   addBox(-54, 0, -10, 0.5, 3.5, 6, secretRoomMat);
-  // Left wall
-  addBox(-49.5, 0, -13, 9, 3.5, 0.5, secretRoomMat);
-  // Right wall
-  addBox(-49.5, 0, -7, 9, 3.5, 0.5, secretRoomMat);
+  // Left wall (aligned with shed opening at z=-12.5)
+  addBox(-49.5, 0, -12.5, 9, 3.5, 0.5, secretRoomMat);
+  // Right wall (aligned with shed opening at z=-7.5)
+  addBox(-49.5, 0, -7.5, 9, 3.5, 0.5, secretRoomMat);
   // Ceiling (visual only)
   const ceilGeo = new THREE.PlaneGeometry(9, 6);
   const ceilMesh = new THREE.Mesh(ceilGeo, secretRoomMat);
