@@ -193,8 +193,8 @@ canvas { display: block; }
 .dpad-left-btn { left: 0; top: 54px; }
 .dpad-right-btn { right: 0; top: 54px; }
 #touch-sprint {
-  position: absolute; right: 165px; bottom: 80px;
-  width: 70px; height: 40px; border-radius: 20px;
+  position: absolute; right: 178px; bottom: 80px;
+  width: 55px; height: 40px; border-radius: 20px;
   background: rgba(68,170,255,0.25); border: 2px solid rgba(68,170,255,0.4);
   color: #44aaff; font-size: 0.7em; font-family: 'Courier New', monospace;
   display: flex; align-items: center; justify-content: center;
@@ -202,7 +202,7 @@ canvas { display: block; }
 }
 #touch-sprint.active { background: rgba(68,170,255,0.5); }
 #touch-jump {
-  position: absolute; right: 50px; bottom: 190px;
+  position: absolute; right: 70px; bottom: 185px;
   width: 50px; height: 50px; border-radius: 50%;
   background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.25);
   color: #aaa; font-size: 0.7em; font-family: 'Courier New', monospace;
@@ -577,7 +577,7 @@ function addBox(x, y, z, w, h, d, mat, addCollider) {
   mesh.position.set(x, y + h/2, z);
   scene.add(mesh);
   if (addCollider !== false) {
-    colliders.push({ min: {x: x-w/2, z: z-d/2}, max: {x: x+w/2, z: z+d/2} });
+    colliders.push({ min: {x: x-w/2, z: z-d/2}, max: {x: x+w/2, z: z+d/2}, topY: y + h });
   }
   return mesh;
 }
@@ -695,7 +695,7 @@ function buildEnvironment() {
     // Register climbable ladder zone (push slightly outside the tower)
     const ladderX = tx + ox + (face === 'x' ? 1.5 : 0);
     const ladderZ = tz + oz + (face === 'z' ? 1.5 : 0);
-    ladderZones.push({ x: ladderX, z: ladderZ, height: th, radius: 2.0 });
+    ladderZones.push({ x: ladderX, z: ladderZ, height: th, radius: 2.0, towerX: tx, towerZ: tz });
   }
 
   // Water channel material (trough water)
@@ -1304,9 +1304,12 @@ function canWallySeePlayer() {
 // ============================================================
 // COLLISION
 // ============================================================
-function checkCollision(x, z, radius) {
+function checkCollision(x, z, radius, feetY) {
   const r = radius || CFG.PLAYER_RADIUS;
+  const fy = feetY !== undefined ? feetY : 0;
   for (const box of colliders) {
+    // Skip collision if player's feet are above this collider (walking on top)
+    if (box.topY !== undefined && fy >= box.topY - 0.5) continue;
     if (x + r > box.min.x && x - r < box.max.x &&
         z + r > box.min.z && z - r < box.max.z) {
       return true;
@@ -1510,41 +1513,44 @@ function updatePlayer(dt) {
     }
   }
 
-  // Slide surface check: stand inside open-top trough
+  // Platform check first: find floor height at player position
   let floorY = 0; // ground level
-  let onSlideIdx = -1;
-  let onSlidePointIdx = -1;
-  for (let si = 0; si < slidePaths.length; si++) {
-    const pts = slidePaths[si];
-    const r = slideRadii[si] || 1.0;
-    for (let i = 0; i < pts.length; i++) {
-      const sp = pts[i];
-      const dx = playerPos.x - sp.x;
-      const dz = playerPos.z - sp.z;
-      const hDist = Math.sqrt(dx * dx + dz * dz);
-      if (hDist < r + 0.5) {
-        // Player stands at bottom of trough (sp.y is center, bottom = sp.y - r*0.3)
-        const troughFloor = sp.y - r * 0.3;
-        const feetY = playerPos.y - CFG.PLAYER_HEIGHT;
-        if (feetY >= troughFloor - 2 && feetY < troughFloor + 3) {
-          if (troughFloor > floorY) {
-            floorY = troughFloor;
-            onSlideIdx = si;
-            onSlidePointIdx = i;
-          }
-        }
+  let onPlatform = false;
+  for (const p of platforms) {
+    if (playerPos.x > p.min.x && playerPos.x < p.max.x &&
+        playerPos.z > p.min.z && playerPos.z < p.max.z) {
+      const feetY = playerPos.y - CFG.PLAYER_HEIGHT;
+      if (feetY >= p.y - 2) {
+        floorY = Math.max(floorY, p.y);
+        onPlatform = true;
       }
     }
   }
 
-  // Platform check: find floor height at player position
-  for (const p of platforms) {
-    if (playerPos.x > p.min.x && playerPos.x < p.max.x &&
-        playerPos.z > p.min.z && playerPos.z < p.max.z) {
-      // Land on platform if player's feet are at or above platform level
-      const feetY = playerPos.y - CFG.PLAYER_HEIGHT;
-      if (feetY >= p.y - 2) {
-        floorY = Math.max(floorY, p.y);
+  // Slide surface check: stand inside open-top trough (skip if on a platform)
+  let onSlideIdx = -1;
+  let onSlidePointIdx = -1;
+  if (!onPlatform) {
+    for (let si = 0; si < slidePaths.length; si++) {
+      const pts = slidePaths[si];
+      const r = slideRadii[si] || 1.0;
+      for (let i = 0; i < pts.length; i++) {
+        const sp = pts[i];
+        const dx = playerPos.x - sp.x;
+        const dz = playerPos.z - sp.z;
+        const hDist = Math.sqrt(dx * dx + dz * dz);
+        if (hDist < r + 0.5) {
+          const troughFloor = sp.y - r * 0.3;
+          const feetY = playerPos.y - CFG.PLAYER_HEIGHT;
+          // Tight vertical check: must be within 1 unit of trough floor
+          if (feetY >= troughFloor - 1 && feetY < troughFloor + 1.5) {
+            if (troughFloor > floorY) {
+              floorY = troughFloor;
+              onSlideIdx = si;
+              onSlidePointIdx = i;
+            }
+          }
+        }
       }
     }
   }
@@ -1623,21 +1629,37 @@ function updatePlayer(dt) {
   }
 
   const atLadderTop = onLadder && playerPos.y >= ladderMaxY - 0.5;
-  if (onLadder && playerPos.y > CFG.PLAYER_HEIGHT + 0.5 && !isJumping && !atLadderTop) {
-    // On ladder mid-climb: W/S climb up/down, no horizontal movement
-    const climbDir = (keys.w || touchMoveY < 0) ? 1 : (keys.s || touchMoveY > 0) ? -1 : 0;
-    const climbSpeed = 4.0;
-    playerPos.y = Math.max(CFG.PLAYER_HEIGHT, Math.min(ladderMaxY, playerPos.y + climbDir * climbSpeed * dt));
+  if (onLadder && playerPos.y > CFG.PLAYER_HEIGHT + 0.5 && !isJumping) {
+    const wantsUp = keys.w || touchMoveY < 0;
+    const wantsDown = keys.s || touchMoveY > 0;
+
+    if (atLadderTop && wantsUp) {
+      // Mount onto platform: teleport player to tower center at platform height
+      for (const lz of ladderZones) {
+        const ldx = playerPos.x - lz.x;
+        const ldz = playerPos.z - lz.z;
+        if (Math.sqrt(ldx * ldx + ldz * ldz) < lz.radius) {
+          playerPos.set(lz.towerX, lz.height + CFG.PLAYER_HEIGHT, lz.towerZ);
+          break;
+        }
+      }
+    } else {
+      // On ladder mid-climb: W/S climb up/down, no horizontal movement
+      const climbDir = wantsUp ? 1 : wantsDown ? -1 : 0;
+      const climbSpeed = 4.0;
+      playerPos.y = Math.max(CFG.PLAYER_HEIGHT, Math.min(ladderMaxY, playerPos.y + climbDir * climbSpeed * dt));
+    }
   } else {
     // Normal horizontal movement
     const velocity = moveDir.multiplyScalar(speed * dt);
     const newX = playerPos.x + velocity.x;
     const newZ = playerPos.z + velocity.z;
 
-    if (!checkCollision(newX, playerPos.z, CFG.PLAYER_RADIUS)) {
+    const feetY = playerPos.y - CFG.PLAYER_HEIGHT;
+    if (!checkCollision(newX, playerPos.z, CFG.PLAYER_RADIUS, feetY)) {
       playerPos.x = newX;
     }
-    if (!checkCollision(playerPos.x, newZ, CFG.PLAYER_RADIUS)) {
+    if (!checkCollision(playerPos.x, newZ, CFG.PLAYER_RADIUS, feetY)) {
       playerPos.z = newZ;
     }
 
