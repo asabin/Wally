@@ -849,8 +849,88 @@ function buildEnvironment() {
   addBox(8, 0, 44, 5, 3, 4, bldgMat);
   // Restrooms
   addBox(38, 0, 5, 7, 4, 6, bldgMat);
-  // Storage shed
-  addBox(-42, 0, -10, 6, 3.5, 5, bldgMat);
+  // Storage shed (visual only, custom colliders to leave back wall passable)
+  addBox(-42, 0, -10, 6, 3.5, 5, bldgMat, false); // visual, no collider
+  // Front wall collider (east face, x = -42 + 3 = -39)
+  colliders.push({ min:{x:-39.5, z:-12.5}, max:{x:-39, z:-7.5}, topY: 3.5 });
+  // Left wall collider (south face, z = -10 - 2.5 = -12.5)
+  colliders.push({ min:{x:-45, z:-13}, max:{x:-39, z:-12.5}, topY: 3.5 });
+  // Right wall collider (north face, z = -10 + 2.5 = -7.5)
+  colliders.push({ min:{x:-45, z:-7.5}, max:{x:-39, z:-7}, topY: 3.5 });
+  // Back wall is OPEN — leads to secret room!
+
+  // ---- SECRET DEVELOPER ROOM (Easter Egg) ----
+  const secretRoomMat = new THREE.MeshPhongMaterial({ color: 0x2a2030, map: wallTex });
+
+  // Room walls behind the shed (x: -45 to -54, z: -13 to -7)
+  // Back wall
+  addBox(-54, 0, -10, 0.5, 3.5, 6, secretRoomMat);
+  // Left wall
+  addBox(-49.5, 0, -13, 9, 3.5, 0.5, secretRoomMat);
+  // Right wall
+  addBox(-49.5, 0, -7, 9, 3.5, 0.5, secretRoomMat);
+  // Ceiling (visual only)
+  const ceilGeo = new THREE.PlaneGeometry(9, 6);
+  const ceilMesh = new THREE.Mesh(ceilGeo, secretRoomMat);
+  ceilMesh.rotation.x = Math.PI / 2;
+  ceilMesh.position.set(-49.5, 3.5, -10);
+  scene.add(ceilMesh);
+  // Floor (slightly different shade)
+  const floorMesh = new THREE.Mesh(ceilGeo, new THREE.MeshPhongMaterial({ color: 0x1a1520 }));
+  floorMesh.rotation.x = -Math.PI / 2;
+  floorMesh.position.set(-49.5, 0.05, -10);
+  scene.add(floorMesh);
+
+  // Warm light inside
+  const secretLight = new THREE.PointLight(0xffaa44, 2.5, 15);
+  secretLight.position.set(-50, 2.8, -10);
+  scene.add(secretLight);
+
+  // Graffiti wall texture
+  // Graffiti as HTML overlay (shows when in secret room, positioned on back wall)
+  const graffitiEl = document.createElement('div');
+  graffitiEl.id = 'graffiti-wall';
+  graffitiEl.innerHTML = `
+    <div style="font-size:1.2em;color:#ff4466;margin-bottom:4px;">BUILT BY</div>
+    <div style="font-size:2em;color:#44ddff;text-shadow:0 0 15px #44ddff;">OLLIE</div>
+    <div style="font-size:2em;color:#ffcc00;text-shadow:0 0 15px #ffcc00;">HENRY</div>
+    <div style="font-size:2em;color:#66ff88;text-shadow:0 0 15px #66ff88;">HEATH</div>
+    <div style="font-size:0.8em;color:#ff88ff;margin-top:8px;">~ EST. 2026 ~</div>
+  `;
+  graffitiEl.style.cssText = 'display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;font-family:Courier New,monospace;font-weight:bold;pointer-events:none;z-index:90;letter-spacing:3px;';
+  document.body.appendChild(graffitiEl);
+
+  // Trophy prop (gold star on a table)
+  const tableMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(1.2, 0.8, 0.8),
+    new THREE.MeshPhongMaterial({ color: 0x3a2a20 })
+  );
+  tableMesh.position.set(-51, 0.4, -9);
+  scene.add(tableMesh);
+  const trophyMat = new THREE.MeshPhongMaterial({ color: 0xffcc00, emissive: 0xffaa00, emissiveIntensity: 1.5 });
+  window._trophy = new THREE.Mesh(new THREE.OctahedronGeometry(0.35), trophyMat);
+  window._trophy.position.set(-51, 1.15, -9);
+  scene.add(window._trophy);
+  const trophyLight = new THREE.PointLight(0xffcc00, 0.8, 5);
+  trophyLight.position.set(-51, 1.5, -9);
+  scene.add(trophyLight);
+
+  // Secret room discovery tracking
+  let secretFound = false;
+  window._checkSecret = function() {
+    const inRoom = playerPos.x < -46 && playerPos.x > -54 &&
+        playerPos.z > -13 && playerPos.z < -7;
+    graffitiEl.style.display = inRoom ? 'block' : 'none';
+    if (!secretFound && inRoom) {
+      secretFound = true;
+      const msg = document.createElement('div');
+      msg.textContent = '🏆 SECRET ROOM FOUND!';
+      msg.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);color:#ffcc00;font-family:Courier New,monospace;font-size:1.8em;font-weight:bold;text-shadow:0 0 20px #ffaa00,0 0 40px #ff8800;z-index:999;pointer-events:none;transition:opacity 2s;';
+      document.body.appendChild(msg);
+      setTimeout(() => { msg.style.opacity = '0'; }, 2000);
+      setTimeout(() => { msg.remove(); }, 4000);
+    }
+  };
   // Lifeguard station
   addBox(10, 0, -35, 4, 6, 4, wallMat);
 
@@ -1710,6 +1790,9 @@ function updatePlayer(dt) {
 
   camera.position.copy(playerPos);
 
+  // Secret room check
+  if (window._checkSecret) window._checkSecret();
+
   // Water drip ambience
   dripTimer += dt;
   if (dripTimer > 3 + Math.random() * 5) {
@@ -1729,6 +1812,12 @@ function updatePlayer(dt) {
       playKeyPickup();
     }
   });
+
+  // Trophy spin
+  if (window._trophy) {
+    window._trophy.rotation.y += dt * 2;
+    window._trophy.position.y = 1.15 + Math.sin(clock.getElapsedTime() * 2) * 0.1;
+  }
 
   // Key fragment animation
   const t = clock.getElapsedTime();
