@@ -1566,7 +1566,7 @@ function updatePlayer(dt) {
 
   // While sliding: move along curve at high speed, override movement
   if (isSliding) {
-    const SLIDE_SPEED = 0.45; // traverse full curve in ~2.2 seconds
+    const SLIDE_SPEED = 0.3; // traverse full curve in ~3.3 seconds
     slideT += SLIDE_SPEED * dt;
 
     if (slideT >= 1.0) {
@@ -1622,8 +1622,9 @@ function updatePlayer(dt) {
     }
   }
 
-  if (onLadder && playerPos.y > CFG.PLAYER_HEIGHT + 0.5 && !isJumping) {
-    // On ladder and elevated: W/S climb up/down, no horizontal movement
+  const atLadderTop = onLadder && playerPos.y >= ladderMaxY - 0.5;
+  if (onLadder && playerPos.y > CFG.PLAYER_HEIGHT + 0.5 && !isJumping && !atLadderTop) {
+    // On ladder mid-climb: W/S climb up/down, no horizontal movement
     const climbDir = (keys.w || touchMoveY < 0) ? 1 : (keys.s || touchMoveY > 0) ? -1 : 0;
     const climbSpeed = 4.0;
     playerPos.y = Math.max(CFG.PLAYER_HEIGHT, Math.min(ladderMaxY, playerPos.y + climbDir * climbSpeed * dt));
