@@ -410,7 +410,7 @@ function initAudio() {
   droneOsc.type = 'sine';
   droneOsc.frequency.value = 55;
   ambientGain = audioCtx.createGain();
-  ambientGain.gain.value = 0.06;
+  ambientGain.gain.value = isTouchDevice ? 0.02 : 0.06;
   const droneFilter = audioCtx.createBiquadFilter();
   droneFilter.type = 'lowpass';
   droneFilter.frequency.value = 120;
@@ -563,8 +563,8 @@ function initScene() {
   renderer.shadowMap.enabled = false;
   document.body.appendChild(renderer.domElement);
   renderer.domElement.addEventListener('click', () => {
-    if (gameState === 'PLAYING' && !isPointerLocked) {
-      renderer.domElement.requestPointerLock();
+    if (gameState === 'PLAYING' && !isPointerLocked && !isTouchDevice) {
+      try { renderer.domElement.requestPointerLock(); } catch(e) {}
     }
   });
 
@@ -1443,8 +1443,8 @@ function setupControls() {
       resetGame();
     } else if (gameState === 'WON') {
       resetGame();
-    } else if (gameState === 'PLAYING' && !isPointerLocked) {
-      renderer.domElement.requestPointerLock();
+    } else if (gameState === 'PLAYING' && !isPointerLocked && !isTouchDevice) {
+      try { renderer.domElement.requestPointerLock(); } catch(e) {}
     }
   });
 
