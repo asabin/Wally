@@ -246,7 +246,7 @@ canvas { display: block; }
     Avoid Wally. If he catches you... it's over.
   </div>
   <div class="start-msg">[ TAP TO ENTER THE WATERPARK ]</div>
-  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v1.6</div>
+  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v1.7</div>
 </div>
 
 <div id="pause-btn" onclick="event.stopPropagation();togglePause();" ontouchstart="event.preventDefault();event.stopPropagation();togglePause();" style="display:none;position:fixed;top:15px;left:50%;transform:translateX(-50%);width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.5);font-size:1.4em;align-items:center;justify-content:center;cursor:pointer;user-select:none;touch-action:none;z-index:50;font-family:'Courier New',monospace;">☰</div>
@@ -863,14 +863,12 @@ function buildEnvironment() {
   addBox(8, 0, 44, 5, 3, 4, bldgMat);
   // Restrooms
   addBox(38, 0, 5, 7, 4, 6, bldgMat);
-  // Storage shed (visual only, custom colliders to leave back wall passable)
+  // Storage shed (visual only, custom colliders to leave front & back passable)
   addBox(-42, 0, -10, 6, 3.5, 5, bldgMat, false); // visual, no collider
-  // Front wall collider (east face)
-  colliders.push({ min:{x:-39.5, z:-12.5}, max:{x:-39, z:-7.5}, topY: 3.5 });
-  // Left wall collider (south face) — stops at x=-41 so secret room entrance is wide open
-  colliders.push({ min:{x:-41, z:-13}, max:{x:-39, z:-12.5}, topY: 3.5 });
-  // Right wall collider (north face) — stops at x=-41 so secret room entrance is wide open
-  colliders.push({ min:{x:-41, z:-7.5}, max:{x:-39, z:-7}, topY: 3.5 });
+  // No front wall collider — player walks in through the front of the shed
+  // Side wall colliders (full length so player stays inside while walking through)
+  colliders.push({ min:{x:-45, z:-13}, max:{x:-39, z:-12.5}, topY: 3.5 }); // south wall
+  colliders.push({ min:{x:-45, z:-7.5}, max:{x:-39, z:-7}, topY: 3.5 });   // north wall
   // ---- SECRET DEVELOPER ROOM (Easter Egg) ----
   const secretRoomMat = new THREE.MeshPhongMaterial({ color: 0x2a2030, map: wallTex });
 
