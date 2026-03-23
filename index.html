@@ -246,7 +246,7 @@ canvas { display: block; }
     Avoid Wally. If he catches you... it's over.
   </div>
   <div class="start-msg">[ TAP TO ENTER THE WATERPARK ]</div>
-  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v2.1</div>
+  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v2.2</div>
 </div>
 
 <div id="pause-btn" onclick="event.stopPropagation();togglePause();" ontouchstart="event.preventDefault();event.stopPropagation();togglePause();" style="display:none;position:fixed;top:15px;left:50%;transform:translateX(-50%);width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.5);font-size:1.4em;align-items:center;justify-content:center;cursor:pointer;user-select:none;touch-action:none;z-index:50;font-family:'Courier New',monospace;">☰</div>
@@ -317,6 +317,8 @@ canvas { display: block; }
 
 <script src="https://unpkg.com/three@0.152.2/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/MTLLoader.js"></script>
 <script>
 'use strict';
 
@@ -1099,45 +1101,54 @@ function createWally() {
   eyeLight.position.set(0, 3, 0.6);
   group.add(eyeLight);
 
-  // Load custom GLB model
-  const loader = new THREE.GLTFLoader();
-  loader.load('wallys.glb', (gltf) => {
-    const model = gltf.scene;
-    // Measure model to auto-scale to ~3 units tall (Wally's height)
-    const box = new THREE.Box3().setFromObject(model);
-    const modelHeight = box.max.y - box.min.y;
-    const targetHeight = 3.0;
-    const s = targetHeight / modelHeight;
-    model.scale.set(s, s, s);
-    // Center model horizontally and place feet on ground
-    const centeredBox = new THREE.Box3().setFromObject(model);
-    model.position.y -= centeredBox.min.y;
-    model.position.x -= (centeredBox.min.x + centeredBox.max.x) / 2;
-    model.position.z -= (centeredBox.min.z + centeredBox.max.z) / 2;
-    // Ensure Tinkercad vertex colors show and add horror tint
-    model.traverse((child) => {
-      if (child.isMesh) {
-        child.material = child.material.clone();
-        if (child.geometry.attributes.color) {
-          child.material.vertexColors = true;
+  // Load custom OBJ+MTL model from Tinkercad
+  const mtlLoader = new THREE.MTLLoader();
+  mtlLoader.load('obj.mtl', (materials) => {
+    materials.preload();
+    const objLoader = new THREE.OBJLoader();
+    objLoader.setMaterials(materials);
+    objLoader.load('tinker.obj', (model) => {
+      // Measure model to auto-scale to ~3 units tall
+      const box = new THREE.Box3().setFromObject(model);
+      const modelHeight = box.max.y - box.min.y;
+      const targetHeight = 3.0;
+      const s = targetHeight / modelHeight;
+      model.scale.set(s, s, s);
+      // Center model horizontally and place feet on ground
+      const centeredBox = new THREE.Box3().setFromObject(model);
+      model.position.y -= centeredBox.min.y;
+      model.position.x -= (centeredBox.min.x + centeredBox.max.x) / 2;
+      model.position.z -= (centeredBox.min.z + centeredBox.max.z) / 2;
+      // Convert to Phong for lighting and add subtle horror tint
+      model.traverse((child) => {
+        if (child.isMesh) {
+          const oldMat = child.material;
+          child.material = new THREE.MeshPhongMaterial({
+            color: oldMat.color || 0xffffff,
+            emissive: new THREE.Color(0x1a0a0a),
+            emissiveIntensity: 0.3
+          });
         }
-        child.material.emissive = new THREE.Color(0x3a1a1a);
-        child.material.emissiveIntensity = 0.3;
-      }
+      });
+      group.add(model);
+      eyeLight.position.y = targetHeight * 0.9;
+    }, undefined, (err) => {
+      console.error('Failed to load Wally OBJ:', err);
+      addFallbackWally(group);
     });
-    group.add(model);
-    // Update eye light position to top of model
-    eyeLight.position.y = targetHeight * 0.9;
   }, undefined, (err) => {
-    console.error('Failed to load Wally GLB:', err);
-    // Fallback: add a simple shape so game still works
+    console.error('Failed to load Wally MTL:', err);
+    addFallbackWally(group);
+  });
+
+  function addFallbackWally(g) {
     const fallback = new THREE.Mesh(
       new THREE.CylinderGeometry(0.8, 0.8, 3, 8),
       new THREE.MeshPhongMaterial({ color: 0x5a5a6a, emissive: 0x3a1a1a, emissiveIntensity: 0.8 })
     );
     fallback.position.y = 1.5;
-    group.add(fallback);
-  });
+    g.add(fallback);
+  }
 
   // Patrol points in open areas away from tight gaps
   patrolPoints = [
