@@ -209,7 +209,7 @@ canvas { display: block; }
     Avoid Wally. If he catches you... it's over.
   </div>
   <div class="start-msg">[ TAP TO ENTER THE WATERPARK ]</div>
-  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v3.0</div>
+  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v3.1</div>
 </div>
 
 <div id="pause-btn" onclick="event.stopPropagation();togglePause();" ontouchstart="event.preventDefault();event.stopPropagation();togglePause();" style="display:none;position:fixed;top:15px;left:50%;transform:translateX(-50%);width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.5);font-size:1.4em;align-items:center;justify-content:center;cursor:pointer;user-select:none;touch-action:none;z-index:50;font-family:'Courier New',monospace;">☰</div>
@@ -1903,23 +1903,21 @@ function triggerJumpscare() {
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
     clone.position.sub(center);
-    // Rotate to face camera head-on
-    clone.rotation.y = Math.PI;
     scareScene.add(clone);
-    // Close-up portrait of Wally's face
-    scareCam.position.set(0, size.y * 0.35, size.z * 1.1);
+    // Close-up portrait of Wally's face (camera on -Z side facing his front)
+    scareCam.position.set(0, size.y * 0.35, -size.z * 1.1);
     scareCam.lookAt(0, size.y * 0.3, 0);
   }
 
   // Red lighting for horror — from front
   const redLight = new THREE.PointLight(0xff2200, 4, 50);
-  redLight.position.set(0, 3, 8);
+  redLight.position.set(0, 3, -8);
   scareScene.add(redLight);
   const fillLight = new THREE.PointLight(0xff4400, 2, 50);
-  fillLight.position.set(3, -1, 5);
+  fillLight.position.set(3, -1, -5);
   scareScene.add(fillLight);
   const bottomLight = new THREE.PointLight(0xff0000, 1.5, 50);
-  bottomLight.position.set(0, -2, 6);
+  bottomLight.position.set(0, -2, -6);
   scareScene.add(bottomLight);
 
   // Animate the scare scene
