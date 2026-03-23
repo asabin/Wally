@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Wally Walrus's Waterpark</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -206,7 +209,7 @@ canvas { display: block; }
     Avoid Wally. If he catches you... it's over.
   </div>
   <div class="start-msg">[ TAP TO ENTER THE WATERPARK ]</div>
-  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v2.6</div>
+  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v3.0</div>
 </div>
 
 <div id="pause-btn" onclick="event.stopPropagation();togglePause();" ontouchstart="event.preventDefault();event.stopPropagation();togglePause();" style="display:none;position:fixed;top:15px;left:50%;transform:translateX(-50%);width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.5);font-size:1.4em;align-items:center;justify-content:center;cursor:pointer;user-select:none;touch-action:none;z-index:50;font-family:'Courier New',monospace;">☰</div>
@@ -1900,10 +1903,12 @@ function triggerJumpscare() {
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
     clone.position.sub(center);
+    // Rotate to face camera head-on
+    clone.rotation.y = Math.PI;
     scareScene.add(clone);
-    // Camera zoomed into face from +Z direction (front of walrus)
-    scareCam.position.set(0, size.y * 0.35, size.z * 0.7);
-    scareCam.lookAt(0, size.y * 0.15, 0);
+    // Close-up portrait of Wally's face
+    scareCam.position.set(0, size.y * 0.35, size.z * 1.1);
+    scareCam.lookAt(0, size.y * 0.3, 0);
   }
 
   // Red lighting for horror — from front
