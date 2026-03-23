@@ -246,7 +246,7 @@ canvas { display: block; }
     Avoid Wally. If he catches you... it's over.
   </div>
   <div class="start-msg">[ TAP TO ENTER THE WATERPARK ]</div>
-  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v1.9</div>
+  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v2.1</div>
 </div>
 
 <div id="pause-btn" onclick="event.stopPropagation();togglePause();" ontouchstart="event.preventDefault();event.stopPropagation();togglePause();" style="display:none;position:fixed;top:15px;left:50%;transform:translateX(-50%);width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.5);font-size:1.4em;align-items:center;justify-content:center;cursor:pointer;user-select:none;touch-action:none;z-index:50;font-family:'Courier New',monospace;">☰</div>
@@ -1111,15 +1111,18 @@ function createWally() {
     model.scale.set(s, s, s);
     // Center model horizontally and place feet on ground
     const centeredBox = new THREE.Box3().setFromObject(model);
-    model.position.y = -centeredBox.min.y * s;
-    model.position.x = -(centeredBox.min.x + centeredBox.max.x) / 2 * s;
-    model.position.z = -(centeredBox.min.z + centeredBox.max.z) / 2 * s;
-    // Add dark emissive tint for horror feel
+    model.position.y -= centeredBox.min.y;
+    model.position.x -= (centeredBox.min.x + centeredBox.max.x) / 2;
+    model.position.z -= (centeredBox.min.z + centeredBox.max.z) / 2;
+    // Ensure Tinkercad vertex colors show and add horror tint
     model.traverse((child) => {
       if (child.isMesh) {
         child.material = child.material.clone();
+        if (child.geometry.attributes.color) {
+          child.material.vertexColors = true;
+        }
         child.material.emissive = new THREE.Color(0x3a1a1a);
-        child.material.emissiveIntensity = 0.4;
+        child.material.emissiveIntensity = 0.3;
       }
     });
     group.add(model);
