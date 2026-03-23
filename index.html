@@ -209,7 +209,7 @@ canvas { display: block; }
     Avoid Wally. If he catches you... it's over.
   </div>
   <div class="start-msg">[ TAP TO ENTER THE WATERPARK ]</div>
-  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v3.5</div>
+  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v3.6</div>
 </div>
 
 <div id="pause-btn" onclick="event.stopPropagation();togglePause();" ontouchstart="event.preventDefault();event.stopPropagation();togglePause();" style="display:none;position:fixed;top:15px;left:50%;transform:translateX(-50%);width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.5);font-size:1.4em;align-items:center;justify-content:center;cursor:pointer;user-select:none;touch-action:none;z-index:50;font-family:'Courier New',monospace;">☰</div>
@@ -1903,6 +1903,8 @@ function triggerJumpscare() {
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
     clone.position.sub(center);
+    // Rotate 90° CCW so face points toward camera
+    clone.rotation.y = Math.PI / 2;
     scareScene.add(clone);
     // Camera looks straight at model center from +Z, fixed distance
     const maxDim = Math.max(size.x, size.y, size.z);
