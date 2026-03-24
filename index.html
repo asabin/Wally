@@ -91,8 +91,47 @@ canvas { display: block; }
   position: fixed; inset: 0; z-index: 200; display: none;
   background: #0a0a1a; align-items: center; justify-content: center;
 }
-#scare-canvas {
-  width: 100%; height: 100%; position: absolute; inset: 0;
+#scare-face { position: relative; width: 400px; height: 500px; }
+.sf-hat {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 50px solid transparent; border-right: 50px solid transparent;
+  border-bottom: 80px solid #cc2255;
+}
+.sf-head {
+  position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+  width: 300px; height: 300px; border-radius: 50%;
+  background: #4a4a5a;
+}
+.sf-eye {
+  position: absolute; top: 80px; width: 60px; height: 60px;
+  border-radius: 50%; background: #ff0000;
+  box-shadow: 0 0 30px #ff0000, 0 0 60px #ff0000, inset 0 0 15px #000;
+  animation: eyepulse 0.15s ease-in-out infinite alternate;
+}
+.sf-eye-l { left: 55px; }
+.sf-eye-r { right: 55px; }
+@keyframes eyepulse { from { box-shadow: 0 0 30px #ff0000, 0 0 60px #ff0000; } to { box-shadow: 0 0 50px #ff0000, 0 0 80px #ff3333; } }
+.sf-snout {
+  position: absolute; top: 140px; left: 50%; transform: translateX(-50%);
+  width: 100px; height: 60px; border-radius: 50%;
+  background: #5a5a6a;
+}
+.sf-tusk {
+  position: absolute; top: 200px; width: 16px; height: 60px;
+  background: #ffe8c0; border-radius: 0 0 8px 8px;
+}
+.sf-tusk-l { left: 90px; }
+.sf-tusk-r { right: 90px; }
+.sf-mouth {
+  position: absolute; top: 210px; left: 50%; transform: translateX(-50%);
+  width: 120px; height: 50px; border-radius: 0 0 60px 60px;
+  background: #220000; border: 3px solid #440000;
+  overflow: hidden;
+}
+.sf-teeth {
+  width: 100%; height: 15px;
+  background: repeating-linear-gradient(90deg, #fff 0 8px, #440000 8px 12px);
 }
 .sf-text {
   position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%);
@@ -209,7 +248,7 @@ canvas { display: block; }
     Avoid Wally. If he catches you... it's over.
   </div>
   <div class="start-msg">[ TAP TO ENTER THE WATERPARK ]</div>
-  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v4.1</div>
+  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v4.2</div>
 </div>
 
 <div id="pause-btn" onclick="event.stopPropagation();togglePause();" ontouchstart="event.preventDefault();event.stopPropagation();togglePause();" style="display:none;position:fixed;top:15px;left:50%;transform:translateX(-50%);width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.5);font-size:1.4em;align-items:center;justify-content:center;cursor:pointer;user-select:none;touch-action:none;z-index:50;font-family:'Courier New',monospace;">☰</div>
@@ -245,8 +284,20 @@ canvas { display: block; }
 </div>
 
 <div id="jumpscare">
-  <canvas id="scare-canvas"></canvas>
-  <div class="sf-text">COME SWIM WITH WALLY</div>
+  <div id="scare-face">
+    <div class="sf-hat"></div>
+    <div class="sf-head">
+      <div class="sf-eye sf-eye-l"></div>
+      <div class="sf-eye sf-eye-r"></div>
+      <div class="sf-snout"></div>
+      <div class="sf-tusk sf-tusk-l"></div>
+      <div class="sf-tusk sf-tusk-r"></div>
+      <div class="sf-mouth">
+        <div class="sf-teeth"></div>
+      </div>
+    </div>
+    <div class="sf-text">COME SWIM WITH WALLY</div>
+  </div>
 </div>
 
 <div id="pause-screen" style="display:none; position:fixed; inset:0; z-index:150; background:rgba(0,0,0,0.8); align-items:center; justify-content:center; flex-direction:column; font-family:'Courier New',monospace;">
@@ -1886,58 +1937,7 @@ function triggerJumpscare() {
   jumpscareEl.style.display = 'flex';
   jumpscareEl.classList.add('screen-shake');
 
-  // Render Wally's 3D model on the scare canvas
-  const scareCanvas = document.getElementById('scare-canvas');
-  const scareRenderer = new THREE.WebGLRenderer({ canvas: scareCanvas, antialias: false });
-  scareRenderer.setSize(window.innerWidth, window.innerHeight);
-  scareRenderer.setClearColor(0x0a0a1a);
-  const scareScene = new THREE.Scene();
-  const scareCam = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-
-  // Clone entire Wally group (preserves rotation fix) into the scare scene
-  if (wallyMesh) {
-    const clone = wallyMesh.clone();
-    clone.position.set(0, 0, 0);
-    // Measure and center
-    const box = new THREE.Box3().setFromObject(clone);
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    clone.position.sub(center);
-    // Reset any inherited game rotation, then apply fixed jumpscare angle
-    clone.rotation.set(0, 0, 0);
-    clone.rotation.y = Math.PI / 4 - (25 * Math.PI / 180);
-    scareScene.add(clone);
-    // Camera looks straight at model center from +Z, fixed distance
-    const maxDim = Math.max(size.x, size.y, size.z);
-    scareCam.position.set(0, 0, maxDim * 0.7);
-    scareCam.lookAt(0, 0, 0);
-  }
-
-  // Natural white lighting to show Wally's true colors
-  const frontLight = new THREE.DirectionalLight(0xffffff, 2.5);
-  frontLight.position.set(0, 2, 8);
-  scareScene.add(frontLight);
-  const fillLight = new THREE.DirectionalLight(0xffffff, 1.5);
-  fillLight.position.set(3, -1, 5);
-  scareScene.add(fillLight);
-  const ambLight = new THREE.AmbientLight(0xffffff, 1.0);
-  scareScene.add(ambLight);
-
-  // Animate the scare scene
-  let scareFrame;
-  const startTime = Date.now();
-  function animateScare() {
-    const elapsed = (Date.now() - startTime) / 1000;
-    // Subtle light pulse for drama
-    frontLight.intensity = 2.5 + Math.sin(elapsed * 8) * 0.5;
-    scareRenderer.render(scareScene, scareCam);
-    scareFrame = requestAnimationFrame(animateScare);
-  }
-  animateScare();
-
   setTimeout(() => {
-    cancelAnimationFrame(scareFrame);
-    scareRenderer.dispose();
     jumpscareEl.style.display = 'none';
     jumpscareEl.classList.remove('screen-shake');
     gameState = 'DEAD';
