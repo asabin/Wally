@@ -209,7 +209,7 @@ canvas { display: block; }
     Avoid Wally. If he catches you... it's over.
   </div>
   <div class="start-msg">[ TAP TO ENTER THE WATERPARK ]</div>
-  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v4.0</div>
+  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v4.1</div>
 </div>
 
 <div id="pause-btn" onclick="event.stopPropagation();togglePause();" ontouchstart="event.preventDefault();event.stopPropagation();togglePause();" style="display:none;position:fixed;top:15px;left:50%;transform:translateX(-50%);width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.5);font-size:1.4em;align-items:center;justify-content:center;cursor:pointer;user-select:none;touch-action:none;z-index:50;font-family:'Courier New',monospace;">☰</div>
@@ -1903,7 +1903,8 @@ function triggerJumpscare() {
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
     clone.position.sub(center);
-    // Rotate 90° CCW so face points toward camera
+    // Reset any inherited game rotation, then apply fixed jumpscare angle
+    clone.rotation.set(0, 0, 0);
     clone.rotation.y = Math.PI / 4 - (25 * Math.PI / 180);
     scareScene.add(clone);
     // Camera looks straight at model center from +Z, fixed distance
@@ -1912,24 +1913,23 @@ function triggerJumpscare() {
     scareCam.lookAt(0, 0, 0);
   }
 
-  // Red lighting for horror — from front
-  const redLight = new THREE.PointLight(0xff2200, 4, 50);
-  redLight.position.set(0, 3, 8);
-  scareScene.add(redLight);
-  const fillLight = new THREE.PointLight(0xff4400, 2, 50);
+  // Natural white lighting to show Wally's true colors
+  const frontLight = new THREE.DirectionalLight(0xffffff, 2.5);
+  frontLight.position.set(0, 2, 8);
+  scareScene.add(frontLight);
+  const fillLight = new THREE.DirectionalLight(0xffffff, 1.5);
   fillLight.position.set(3, -1, 5);
   scareScene.add(fillLight);
-  const bottomLight = new THREE.PointLight(0xff0000, 1.5, 50);
-  bottomLight.position.set(0, -2, 6);
-  scareScene.add(bottomLight);
+  const ambLight = new THREE.AmbientLight(0xffffff, 1.0);
+  scareScene.add(ambLight);
 
   // Animate the scare scene
   let scareFrame;
   const startTime = Date.now();
   function animateScare() {
     const elapsed = (Date.now() - startTime) / 1000;
-    // Pulse the light, camera stays still
-    redLight.intensity = 4 + Math.sin(elapsed * 15) * 2;
+    // Subtle light pulse for drama
+    frontLight.intensity = 2.5 + Math.sin(elapsed * 8) * 0.5;
     scareRenderer.render(scareScene, scareCam);
     scareFrame = requestAnimationFrame(animateScare);
   }
