@@ -230,7 +230,7 @@ canvas { display: block; }
   filter: drop-shadow(0 0 30px #00ffff);
 }
 #gun-canvas {
-  width: 140px; height: 140px;
+  width: 200px; height: 200px;
   display: block;
   background: transparent;
 }
@@ -457,7 +457,7 @@ canvas { display: block; }
     Avoid Wally. If he catches you... it's over.
   </div>
   <div class="start-msg">[ TAP TO ENTER THE WATERPARK ]</div>
-  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v4.4</div>
+  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v4.5</div>
 </div>
 
 <div id="pause-btn" onclick="event.stopPropagation();togglePause();" ontouchstart="event.preventDefault();event.stopPropagation();togglePause();" style="display:none;position:fixed;top:15px;left:50%;transform:translateX(-50%);width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.5);font-size:1.4em;align-items:center;justify-content:center;cursor:pointer;user-select:none;touch-action:none;z-index:50;font-family:'Courier New',monospace;">☰</div>
@@ -1756,6 +1756,8 @@ function setupControls() {
     if (k === 'e') tryEscape();
     if (k === ' ') { e.preventDefault(); tryJump(); }
     if (k === 'escape') { e.preventDefault(); togglePause(); }
+    // Easter egg: press backtick (`) to skip to shop
+    if (k === '`' && gameState === 'PLAYING') { triggerWin(); }
   });
 
   document.addEventListener('keyup', (e) => {
@@ -2274,7 +2276,7 @@ function runShopSequence() {
   // Load and render the HYDRO-9000 3D model
   const gunCanvas = document.getElementById('gun-canvas');
   const gunRenderer = new THREE.WebGLRenderer({ canvas: gunCanvas, antialias: true, alpha: true });
-  gunRenderer.setSize(140, 140);
+  gunRenderer.setSize(200, 200);
   gunRenderer.setClearColor(0x000000, 0);
   const gunScene = new THREE.Scene();
   const gunCam = new THREE.PerspectiveCamera(40, 1, 0.01, 200);
@@ -2300,14 +2302,16 @@ function runShopSequence() {
       const center = box.getCenter(new THREE.Vector3());
       const size = box.getSize(new THREE.Vector3());
       obj.position.sub(center);
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const scale = 1.6 / maxDim;
+      // Gun is long on X axis — scale so it fits nicely in a square canvas
+      // Target: fill ~80% of the canvas width
+      const scale = 1.8 / size.x;
       obj.scale.setScalar(scale);
-      // Orient nicely: slight tilt so it reads as a gun on a shelf
-      obj.rotation.x = -0.2;
-      obj.rotation.y = 0.6;
+      // Rotate: Z-up Tinkercad → Y-up Three.js, then tilt for a nice 3/4 view
+      obj.rotation.x = -Math.PI / 2; // Z-up to Y-up
+      obj.rotation.z = 0.4;          // slight roll for visual interest
       gunScene.add(obj);
-      gunCam.position.set(0, 0, 3.5);
+      // Pull camera back enough to see the whole gun
+      gunCam.position.set(0, 0.3, 3.5);
       gunCam.lookAt(0, 0, 0);
       // Slow rotation for display
       function animateGun() {
