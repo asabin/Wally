@@ -457,7 +457,7 @@ canvas { display: block; }
     Avoid Wally. If he catches you... it's over.
   </div>
   <div class="start-msg">[ TAP TO ENTER THE WATERPARK ]</div>
-  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v4.6</div>
+  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v4.7</div>
 </div>
 
 <div id="version-badge" style="display:none;position:fixed;bottom:10px;right:0;color:rgba(255,255,255,0.25);font-size:0.9em;font-family:'Courier New',monospace;z-index:50;padding:20px 15px;cursor:default;user-select:none;-webkit-user-select:none;touch-action:manipulation;"></div>
@@ -664,6 +664,8 @@ let playerVelY = 0;   // vertical velocity for jumping
 let isJumping = false;
 let keyFragments = []; // {mesh, collected, light}
 let wally, wallyState, wallyTarget, wallyLostTimer, wallyMesh;
+// Gun shop globals
+let gunRenderer, gunScene, gunCam, gunObj, gunAnimFrame;
 let wallyLOSLostTimer = 0;
 let wallyCachedMeshes = null;
 let wallySpeed = CFG.WALLY_PATROL_SPEED;
@@ -869,6 +871,9 @@ function initScene() {
   });
 
   clock = new THREE.Clock();
+
+  // Pre-load HYDRO-9000 model for shop scene
+  preloadGun();
 
   // Lighting
   const ambient = new THREE.AmbientLight(0x3a5a7a, 1.2);
@@ -2232,7 +2237,7 @@ function startGame() {
   hud.style.display = 'block';
   document.getElementById('pause-btn').style.display = 'flex';
   const vb = document.getElementById('version-badge');
-  vb.textContent = 'v4.6'; vb.style.display = 'block';
+  vb.textContent = 'v4.7'; vb.style.display = 'block';
   if (isTouchDevice) {
     document.getElementById('touch-controls').style.display = 'block';
     isPointerLocked = true; // fake it so updatePlayer runs
@@ -2276,6 +2281,47 @@ function triggerWin() {
   setTimeout(runShopSequence, 1000);
 }
 
+function preloadGun() {
+  const gunCanvas = document.getElementById('gun-canvas');
+  gunRenderer = new THREE.WebGLRenderer({ canvas: gunCanvas, antialias: true, alpha: true });
+  gunRenderer.setSize(200, 200);
+  gunRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  gunRenderer.setClearColor(0x000000, 0);
+
+  gunScene = new THREE.Scene();
+  gunCam = new THREE.PerspectiveCamera(40, 1, 0.01, 200);
+  gunCam.position.set(0, 0.3, 3.5);
+  gunCam.lookAt(0, 0, 0);
+
+  gunScene.add(new THREE.AmbientLight(0xffffff, 1.2));
+  const k = new THREE.DirectionalLight(0xffffff, 2.0);
+  k.position.set(2, 3, 4); gunScene.add(k);
+  const f = new THREE.DirectionalLight(0x88ddff, 0.8);
+  f.position.set(-2, 1, 2); gunScene.add(f);
+
+  const mtlL = new THREE.MTLLoader();
+  mtlL.setPath('assets/squirtgun/');
+  mtlL.load('obj.mtl', mats => {
+    mats.preload();
+    const objL = new THREE.OBJLoader();
+    objL.setMaterials(mats);
+    objL.setPath('assets/squirtgun/');
+    objL.load('tinker.obj', obj => {
+      const box = new THREE.Box3().setFromObject(obj);
+      const center = box.getCenter(new THREE.Vector3());
+      const size   = box.getSize(new THREE.Vector3());
+      obj.position.sub(center);
+      obj.scale.setScalar(1.8 / size.x);
+      obj.rotation.x = -Math.PI / 2;
+      obj.rotation.z = 0.4;
+      gunObj = obj;
+      gunScene.add(gunObj);
+      // Do one render so it's ready
+      gunRenderer.render(gunScene, gunCam);
+    }, undefined, err => console.error('Gun OBJ load error:', err));
+  }, undefined, err => console.error('Gun MTL load error:', err));
+}
+
 function runShopSequence() {
   const shopEl      = document.getElementById('shop-scene');
   const skeleton    = document.getElementById('skeleton');
@@ -2294,55 +2340,15 @@ function runShopSequence() {
 
   shopEl.style.display = 'flex';
 
-  // Load and render the HYDRO-9000 3D model
-  const gunCanvas = document.getElementById('gun-canvas');
-  const gunRenderer = new THREE.WebGLRenderer({ canvas: gunCanvas, antialias: true, alpha: true });
-  gunRenderer.setSize(200, 200);
-  gunRenderer.setClearColor(0x000000, 0);
-  const gunScene = new THREE.Scene();
-  const gunCam = new THREE.PerspectiveCamera(40, 1, 0.01, 200);
-  const gunAmbient = new THREE.AmbientLight(0xffffff, 1.2);
-  gunScene.add(gunAmbient);
-  const gunKey = new THREE.DirectionalLight(0xffffff, 2.0);
-  gunKey.position.set(2, 3, 4);
-  gunScene.add(gunKey);
-  const gunFill = new THREE.DirectionalLight(0x88ddff, 0.8);
-  gunFill.position.set(-2, 1, 2);
-  gunScene.add(gunFill);
-
-  let gunAnimFrame;
-  const mtlLoader2 = new THREE.MTLLoader();
-  mtlLoader2.setPath('assets/squirtgun/');
-  mtlLoader2.load('obj.mtl', mats => {
-    mats.preload();
-    const objLoader2 = new THREE.OBJLoader();
-    objLoader2.setMaterials(mats);
-    objLoader2.setPath('assets/squirtgun/');
-    objLoader2.load('tinker.obj', obj => {
-      const box = new THREE.Box3().setFromObject(obj);
-      const center = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3());
-      obj.position.sub(center);
-      // Gun is long on X axis — scale so it fits nicely in a square canvas
-      // Target: fill ~80% of the canvas width
-      const scale = 1.8 / size.x;
-      obj.scale.setScalar(scale);
-      // Rotate: Z-up Tinkercad → Y-up Three.js, then tilt for a nice 3/4 view
-      obj.rotation.x = -Math.PI / 2; // Z-up to Y-up
-      obj.rotation.z = 0.4;          // slight roll for visual interest
-      gunScene.add(obj);
-      // Pull camera back enough to see the whole gun
-      gunCam.position.set(0, 0.3, 3.5);
-      gunCam.lookAt(0, 0, 0);
-      // Slow rotation for display
-      function animateGun() {
-        gunAnimFrame = requestAnimationFrame(animateGun);
-        obj.rotation.y += 0.008;
-        gunRenderer.render(gunScene, gunCam);
-      }
-      animateGun();
-    });
-  });
+  // Start spinning the pre-loaded HYDRO-9000 (loaded at game init)
+  if (gunObj && gunRenderer) {
+    function animateGun() {
+      gunAnimFrame = requestAnimationFrame(animateGun);
+      gunObj.rotation.y += 0.015;
+      gunRenderer.render(gunScene, gunCam);
+    }
+    animateGun();
+  }
 
   // t=1.5s — hand reaches for big gun
   setTimeout(() => {
@@ -2373,7 +2379,6 @@ function runShopSequence() {
   // t=6.5s — hide shop, show chapter end card
   setTimeout(() => {
     cancelAnimationFrame(gunAnimFrame);
-    gunRenderer.dispose();
     shopEl.style.display = 'none';
     chapterEnd.style.display = 'flex';
     setTimeout(() => chapterEnd.classList.add('visible'), 50);
