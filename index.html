@@ -460,6 +460,8 @@ canvas { display: block; }
   <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v4.6</div>
 </div>
 
+<div id="version-badge" style="display:none;position:fixed;bottom:10px;right:0;color:rgba(255,255,255,0.25);font-size:0.9em;font-family:'Courier New',monospace;z-index:50;padding:20px 15px;cursor:default;user-select:none;-webkit-user-select:none;touch-action:manipulation;"></div>
+
 <div id="pause-btn" onclick="event.stopPropagation();togglePause();" ontouchstart="event.preventDefault();event.stopPropagation();togglePause();" style="display:none;position:fixed;top:15px;left:50%;transform:translateX(-50%);width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.5);font-size:1.4em;align-items:center;justify-content:center;cursor:pointer;user-select:none;touch-action:none;z-index:50;font-family:'Courier New',monospace;">☰</div>
 
 <div id="hud">
@@ -467,7 +469,6 @@ canvas { display: block; }
   <div id="key-count">KEYS: 0 / 5</div>
   <div id="stamina-bar-bg"><div id="stamina-bar"></div></div>
   <div id="warning">WALLY IS NEAR</div>
-  <div id="version-badge" style="position:fixed;bottom:10px;right:15px;color:rgba(255,255,255,0.25);font-size:0.9em;font-family:'Courier New',monospace;cursor:default;user-select:none;-webkit-user-select:none;z-index:50;padding:8px;">v4.6</div>
   <div id="compass">
     <div id="compass-arrow"></div>
     <div id="compass-label">Key</div>
@@ -2230,6 +2231,8 @@ function startGame() {
   blocker.style.display = 'none';
   hud.style.display = 'block';
   document.getElementById('pause-btn').style.display = 'flex';
+  const vb = document.getElementById('version-badge');
+  vb.textContent = 'v4.6'; vb.style.display = 'block';
   if (isTouchDevice) {
     document.getElementById('touch-controls').style.display = 'block';
     isPointerLocked = true; // fake it so updatePlayer runs
@@ -2427,6 +2430,7 @@ function resumeGame() {
 function goToMenu() {
   document.getElementById('pause-screen').style.display = 'none';
   document.getElementById('pause-btn').style.display = 'none';
+  document.getElementById('version-badge').style.display = 'none';
   hud.style.display = 'none';
   if (isTouchDevice) document.getElementById('touch-controls').style.display = 'none';
   try { document.exitPointerLock(); } catch(e) {}
