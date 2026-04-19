@@ -459,7 +459,7 @@ canvas { display: block; }
     Avoid Wally. If he catches you... it's over.
   </div>
   <div class="start-msg">[ TAP TO ENTER THE WATERPARK ]</div>
-  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v4.9</div>
+  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v5.0</div>
 </div>
 
 <div id="version-badge" style="display:none;position:fixed;bottom:10px;right:0;color:rgba(255,255,255,0.25);font-size:0.9em;font-family:'Courier New',monospace;z-index:50;padding:20px 15px;cursor:default;user-select:none;-webkit-user-select:none;touch-action:manipulation;"></div>
@@ -606,6 +606,9 @@ canvas { display: block; }
   <div id="shop-counter"></div>
 </div>
 
+<!-- FADE OVERLAY for transitions -->
+<div id="fade-overlay" style="position:fixed;inset:0;background:#000;z-index:185;opacity:0;transition:opacity 0.6s;pointer-events:none;"></div>
+
 <!-- CHAPTER END CARD -->
 <div id="chapter-end">
   <div class="ch-title">
@@ -670,6 +673,9 @@ let keyFragments = []; // {mesh, collected, light}
 let wally, wallyState, wallyTarget, wallyLostTimer, wallyMesh;
 // Gun shop globals
 let gunRenderer, gunScene, gunCam, gunObj, gunAnimFrame;
+let exitGateCollider = null, gateOpened = false;
+let shopCinematicTriggered = false, shopGunMesh = null, shopSkeletonMesh = null;
+const SHOP_GUN_POS = new THREE.Vector3(0, 1.4, -71);
 let wallyLOSLostTimer = 0;
 let wallyCachedMeshes = null;
 let wallySpeed = CFG.WALLY_PATROL_SPEED;
@@ -677,7 +683,7 @@ let patrolPoints, patrolIndex = 0;
 let wallyStuckTimer = 0;
 let wallyLastPos = new THREE.Vector2(0, 0);
 let wallySteerAngle = 0; // current steering offset when avoiding walls
-let gameState = 'MENU'; // MENU, PLAYING, JUMPSCARE, DEAD, WON
+let gameState = 'MENU'; // MENU, PLAYING, JUMPSCARE, DEAD, WON, SHOP
 let keys = { w:false, a:false, s:false, d:false, shift:false };
 let isPointerLocked = false;
 let isTouchDevice = false;
@@ -877,7 +883,7 @@ function initScene() {
   clock = new THREE.Clock();
 
   // Pre-load HYDRO-9000 model for shop scene
-  preloadGun();
+  preloadGun(); // also places gun in main scene via buildShopRoom() later
 
   // Lighting
   const ambient = new THREE.AmbientLight(0x3a5a7a, 1.2);
@@ -958,8 +964,9 @@ function buildEnvironment() {
   const slideMat2 = new THREE.MeshPhongMaterial({ map: metalTex, color: 0xaa4422 });
   const hs = CFG.MAP_SIZE / 2;
 
-  // Perimeter walls
-  addBox(0, 0, -hs, CFG.MAP_SIZE, 5, 0.5, fenceMat);
+  // Perimeter walls — south wall has 10-unit gap for shop entrance
+  addBox(-30, 0, -hs, 50, 5, 0.5, fenceMat); // left section  (x: -55 to -5)
+  addBox( 30, 0, -hs, 50, 5, 0.5, fenceMat); // right section (x: +5 to +55)
   addBox(0, 0, hs, CFG.MAP_SIZE, 5, 0.5, fenceMat);
   addBox(-hs, 0, 0, 0.5, 5, CFG.MAP_SIZE, fenceMat);
   addBox(hs, 0, 0, 0.5, 5, CFG.MAP_SIZE, fenceMat);
@@ -1301,6 +1308,7 @@ function buildEnvironment() {
   // ---- Exit Gate ----
   const gateMat = new THREE.MeshPhongMaterial({ color: 0x3a5a4a, emissive: 0x0a1a0a, emissiveIntensity: 0.2 });
   exitGate = addBox(EXIT_POS.x, 0, EXIT_POS.z, 4, 4, 1, gateMat);
+  exitGateCollider = colliders[colliders.length - 1];
   // Lock visual
   const lockMat = new THREE.MeshPhongMaterial({ color: 0xaa8833, emissive: 0x553300, emissiveIntensity: 0.5 });
   const lock = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.2), lockMat);
@@ -1767,8 +1775,15 @@ function setupControls() {
     if (k === 'e') tryEscape();
     if (k === ' ') { e.preventDefault(); tryJump(); }
     if (k === 'escape') { e.preventDefault(); togglePause(); }
-    // Easter egg: press backtick (`) to skip to shop
-    if (k === '`' && gameState === 'PLAYING') { triggerWin(); }
+    // Easter egg: press backtick (`) to skip into shop room
+    if (k === '`' && gameState === 'PLAYING') {
+      keysCollected = CFG.KEY_COUNT;
+      openExitGate();
+      playerPos.set(0, CFG.PLAYER_HEIGHT, -58);
+      playerEuler.set(0, Math.PI, 0);
+      camera.position.copy(playerPos);
+      camera.quaternion.setFromEuler(playerEuler);
+    }
   });
 
   // Easter egg: tap version badge 5x to skip to shop (iPad-friendly)
@@ -1780,7 +1795,12 @@ function setupControls() {
     clearTimeout(versionTapTimer);
     if (versionTaps >= 5) {
       versionTaps = 0;
-      triggerWin();
+      keysCollected = CFG.KEY_COUNT;
+      openExitGate();
+      playerPos.set(0, CFG.PLAYER_HEIGHT, -58);
+      playerEuler.set(0, Math.PI, 0);
+      camera.position.copy(playerPos);
+      camera.quaternion.setFromEuler(playerEuler);
     } else {
       versionTapTimer = setTimeout(() => { versionTaps = 0; }, 2000);
     }
@@ -1879,7 +1899,8 @@ function setupTouchControls() {
 let headBob = 0;
 
 function updatePlayer(dt) {
-  if (gameState !== 'PLAYING' || !isPointerLocked) return;
+  if (gameState !== 'PLAYING' && gameState !== 'SHOP') return;
+  if (!isPointerLocked) return;
 
   // Movement direction
   const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
@@ -2226,8 +2247,12 @@ function tryJump() {
 function tryEscape() {
   if (gameState !== 'PLAYING') return;
   const distToExit = new THREE.Vector2(playerPos.x - EXIT_POS.x, playerPos.z - EXIT_POS.z).length();
-  if (keysCollected >= CFG.KEY_COUNT && distToExit < 5) {
-    triggerWin();
+  if (distToExit < 6) {
+    if (keysCollected < CFG.KEY_COUNT) {
+      showMessage(`NEED ${CFG.KEY_COUNT - keysCollected} MORE KEY${CFG.KEY_COUNT - keysCollected > 1 ? 'S' : ''}`, 1500);
+    } else {
+      showMessage('WALK THROUGH THE GATE', 1500);
+    }
   }
 }
 
@@ -2241,7 +2266,7 @@ function startGame() {
   hud.style.display = 'block';
   document.getElementById('pause-btn').style.display = 'flex';
   const vb = document.getElementById('version-badge');
-  vb.textContent = 'v4.9'; vb.style.display = 'block';
+  vb.textContent = 'v5.0'; vb.style.display = 'block';
   if (isTouchDevice) {
     document.getElementById('touch-controls').style.display = 'block';
     isPointerLocked = true; // fake it so updatePlayer runs
@@ -2283,6 +2308,127 @@ function triggerWin() {
   setTimeout(() => playSound(880, 0.5, 0.15, 'sine'), 600);
 
   setTimeout(runShopSequence, 1000);
+}
+
+function buildShopRoom() {
+  const shopWallMat  = new THREE.MeshPhongMaterial({ color: 0x3d2810 }); // dark wood
+  const shopFloorMat = new THREE.MeshPhongMaterial({ color: 0x5c3a18 }); // warm wood
+  const shopCeilMat  = new THREE.MeshPhongMaterial({ color: 0x2a1a08 }); // dark ceiling
+  const counterMat   = new THREE.MeshPhongMaterial({ color: 0x4a2a0a, emissive: 0x1a0800, emissiveIntensity: 0.3 });
+  const boneMat      = new THREE.MeshPhongMaterial({ color: 0xd4cfc0 }); // skeleton colour
+
+  // Room: X -10..+10, Z -55..-77
+  addBox(0,    0,    -66, 20,   0.1,  22, shopFloorMat, false); // floor
+  addBox(0,    4.6,  -66, 20.5, 0.2,  22, shopCeilMat,  false); // ceiling
+  addBox(-10,  0,    -66, 0.4,  4.5,  22, shopWallMat       ); // west wall
+  addBox( 10,  0,    -66, 0.4,  4.5,  22, shopWallMat       ); // east wall
+  addBox(0,    0,    -77, 20.5, 4.5,  0.4, shopWallMat      ); // back wall
+  // Doorframe pillars at entrance
+  addBox(-5.2, 0, -55.2, 0.4, 4.5, 0.4, shopWallMat);
+  addBox( 5.2, 0, -55.2, 0.4, 4.5, 0.4, shopWallMat);
+
+  // Counter — runs across most of back area
+  addBox(0, 0, -72, 18, 1.1, 1.8, counterMat);
+  // Counter top lip
+  addBox(0, 1.1, -71.1, 18.4, 0.12, 2.2,
+    new THREE.MeshPhongMaterial({ color: 0x6a3a10, emissive: 0x1a0800, emissiveIntensity: 0.2 }), false);
+
+  // Warm shop lighting — two overhead lamps
+  [-5, 5].forEach(x => {
+    const shopLight = new THREE.PointLight(0xffcc66, 1.8, 20);
+    shopLight.position.set(x, 4.2, -66);
+    scene.add(shopLight);
+    const bulbGeo = new THREE.SphereGeometry(0.12, 8, 8);
+    const bulbMat = new THREE.MeshPhongMaterial({ color: 0xffcc88, emissive: 0xffaa55, emissiveIntensity: 1 });
+    const bulb = new THREE.Mesh(bulbGeo, bulbMat);
+    bulb.position.copy(shopLight.position);
+    scene.add(bulb);
+  });
+
+  // Simple skeleton shopkeeper (slumped over counter)
+  const skGroup = new THREE.Group();
+  // Skull
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), boneMat);
+  skull.position.set(0, 0.45, 0);
+  skGroup.add(skull);
+  // Jaw
+  const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.2), boneMat);
+  jaw.position.set(0, 0.24, 0.06);
+  skGroup.add(jaw);
+  // Spine
+  const spine = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.6, 6), boneMat);
+  spine.position.set(0, 0, 0);
+  skGroup.add(spine);
+  // Ribcage
+  [-0.12, 0, 0.12].forEach(y => {
+    const rib = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.025, 6, 12, Math.PI), boneMat);
+    rib.position.set(0, y, 0); rib.rotation.y = Math.PI / 2;
+    skGroup.add(rib);
+  });
+  // Arms (slumped forward on counter)
+  [-0.22, 0.22].forEach(x => {
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.55, 6), boneMat);
+    arm.position.set(x, -0.1, 0.3); arm.rotation.z = x > 0 ? 0.5 : -0.5; arm.rotation.x = -1.2;
+    skGroup.add(arm);
+  });
+
+  skGroup.position.set(0, 2.25, -74.2);
+  skGroup.rotation.x = -0.35; // slumped forward
+  scene.add(skGroup);
+  shopSkeletonMesh = skGroup;
+
+  // Gun-glow light on the counter (teal glow)
+  const gunGlow = new THREE.PointLight(0x00ddff, 1.5, 6);
+  gunGlow.position.set(SHOP_GUN_POS.x, SHOP_GUN_POS.y + 0.5, SHOP_GUN_POS.z);
+  scene.add(gunGlow);
+
+  // Gun in scene is placed by placeGunInScene() once OBJ loads
+}
+
+function openExitGate() {
+  if (gateOpened) return;
+  gateOpened = true;
+  // Remove collider
+  if (exitGateCollider) {
+    const idx = colliders.indexOf(exitGateCollider);
+    if (idx !== -1) colliders.splice(idx, 1);
+  }
+  // Play creak sounds
+  if (audioCtx) {
+    playSound(180, 0.25, 0.4, 'sawtooth');
+    setTimeout(() => playSound(240, 0.2, 0.3, 'sawtooth'), 250);
+    setTimeout(() => playSound(160, 0.15, 0.4, 'sine'), 500);
+  }
+  // Animate gate rising
+  let risen = 0;
+  const rise = setInterval(() => {
+    if (!exitGate) { clearInterval(rise); return; }
+    exitGate.position.y += 0.18;
+    risen++;
+    if (risen >= 25) { clearInterval(rise); exitGate.visible = false; }
+  }, 30);
+  // Message
+  showMessage('THE SHOP IS OPEN', 3000);
+}
+
+function placeGunInScene(obj) {
+  // Clone loaded OBJ into the main 3D scene on the counter
+  shopGunMesh = obj.clone();
+  shopGunMesh.rotation.x = -Math.PI / 2;
+  shopGunMesh.rotation.z = 0.3;
+  // Scale: gun barrel is ~71 units; make it ~1.8 units long in world
+  shopGunMesh.scale.setScalar(1.8 / 71);
+  // Recentre after rotation + scale
+  shopGunMesh.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(shopGunMesh);
+  const c = b.getCenter(new THREE.Vector3());
+  shopGunMesh.position.set(
+    SHOP_GUN_POS.x - c.x,
+    SHOP_GUN_POS.y - c.y,
+    SHOP_GUN_POS.z - c.z
+  );
+  shopGunMesh.rotation.y = Math.PI / 2; // barrel faces entrance
+  scene.add(shopGunMesh);
 }
 
 function preloadGun() {
@@ -2334,6 +2480,8 @@ function preloadGun() {
       gunObj = obj;
       gunScene.add(gunObj);
       gunRenderer.render(gunScene, gunCam);
+      // Also place a copy in the main 3D scene on the shop counter
+      placeGunInScene(obj);
     }, undefined, err => console.error('Gun OBJ load error:', err));
   }, undefined, err => console.error('Gun MTL load error:', err));
 }
@@ -2509,6 +2657,14 @@ function resetGame() {
   wallySteerAngle = 0;
   wallyLastPos.set(0, -30);
 
+  // Reset shop state
+  shopCinematicTriggered = false;
+  gateOpened = false;
+  if (exitGate) { exitGate.visible = true; exitGate.position.y = 2; }
+  if (exitGateCollider && colliders.indexOf(exitGateCollider) === -1) {
+    colliders.push(exitGateCollider);
+  }
+
   if (isTouchDevice) {
     document.getElementById('touch-controls').style.display = 'block';
     isPointerLocked = true;
@@ -2544,6 +2700,31 @@ function animate() {
     updatePlayer(dt);
     updateWally(dt);
     updateLights();
+    // Auto-open gate when all keys collected
+    if (keysCollected >= CFG.KEY_COUNT && !gateOpened) openExitGate();
+    // Detect player entering shop room (walk through doorway)
+    if (playerPos.z < -56 && Math.abs(playerPos.x) < 10.5) {
+      gameState = 'SHOP';
+      hud.style.display = 'none';
+      document.getElementById('touch-escape').style.display = 'none';
+      // Wally stays behind
+      showMessage('YOU MADE IT...', 2500);
+    }
+  }
+
+  if (gameState === 'SHOP') {
+    updatePlayer(dt);
+    updateLights();
+    // Proximity to gun triggers skeleton cinematic
+    if (!shopCinematicTriggered && shopGunMesh) {
+      const d = new THREE.Vector3(playerPos.x - SHOP_GUN_POS.x,
+                                   0,
+                                   playerPos.z - SHOP_GUN_POS.z).length();
+      if (d < 2.5) {
+        shopCinematicTriggered = true;
+        setTimeout(runShopSequence, 400);
+      }
+    }
   }
 
   renderer.render(scene, camera);
@@ -2555,6 +2736,7 @@ function animate() {
 function init() {
   initScene();
   buildEnvironment();
+  buildShopRoom();
   createKeys();
   createWally();
   setupControls();
