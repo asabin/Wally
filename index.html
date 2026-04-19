@@ -223,34 +223,20 @@ canvas { display: block; }
   cursor: pointer;
   transition: transform 0.4s, filter 0.4s;
   filter: drop-shadow(0 0 18px #00eeff);
+  display: flex; flex-direction: column; align-items: center;
 }
-#big-gun:hover { transform: translateX(-50%) scale(1.08); }
 #big-gun.grabbed {
   transform: translateX(-50%) translateY(-40px) scale(1.15);
   filter: drop-shadow(0 0 30px #00ffff);
 }
-.big-gun-body {
-  width: 90px; height: 32px;
-  background: linear-gradient(135deg, #00ccee, #0055aa);
-  border-radius: 4px 12px 4px 4px;
-  position: relative;
-}
-.big-gun-barrel {
-  width: 12px; height: 55px;
-  background: linear-gradient(to bottom, #00eeff, #007799);
-  border-radius: 4px 4px 0 0;
-  margin: 0 auto; transform: translateY(-4px);
-  box-shadow: 0 0 12px #00ffff88;
-}
-.big-gun-handle {
-  width: 24px; height: 36px;
-  background: linear-gradient(to bottom, #003366, #001122);
-  border-radius: 0 0 8px 8px;
-  transform: translateX(24px);
+#gun-canvas {
+  width: 140px; height: 140px;
+  display: block;
+  background: transparent;
 }
 .big-gun-label {
   font-size: 9px; color: #00ffff; text-align: center;
-  margin-top: 4px; text-shadow: 0 0 6px #00ffff;
+  margin-top: 2px; text-shadow: 0 0 6px #00ffff;
   letter-spacing: 1px;
 }
 /* skeleton shopkeeper */
@@ -471,7 +457,7 @@ canvas { display: block; }
     Avoid Wally. If he catches you... it's over.
   </div>
   <div class="start-msg">[ TAP TO ENTER THE WATERPARK ]</div>
-  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v4.3</div>
+  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v4.4</div>
 </div>
 
 <div id="pause-btn" onclick="event.stopPropagation();togglePause();" ontouchstart="event.preventDefault();event.stopPropagation();togglePause();" style="display:none;position:fixed;top:15px;left:50%;transform:translateX(-50%);width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.5);font-size:1.4em;align-items:center;justify-content:center;cursor:pointer;user-select:none;touch-action:none;z-index:50;font-family:'Courier New',monospace;">☰</div>
@@ -570,11 +556,9 @@ canvas { display: block; }
       <div class="gun-body"></div>
       <div class="gun-handle"></div>
     </div>
-    <!-- THE big gun — center -->
+    <!-- THE big gun — center, rendered as 3D model -->
     <div id="big-gun">
-      <div class="big-gun-barrel"></div>
-      <div class="big-gun-body"></div>
-      <div class="big-gun-handle"></div>
+      <canvas id="gun-canvas"></canvas>
       <div class="big-gun-label">HYDRO-9000</div>
     </div>
   </div>
@@ -2287,6 +2271,54 @@ function runShopSequence() {
 
   shopEl.style.display = 'flex';
 
+  // Load and render the HYDRO-9000 3D model
+  const gunCanvas = document.getElementById('gun-canvas');
+  const gunRenderer = new THREE.WebGLRenderer({ canvas: gunCanvas, antialias: true, alpha: true });
+  gunRenderer.setSize(140, 140);
+  gunRenderer.setClearColor(0x000000, 0);
+  const gunScene = new THREE.Scene();
+  const gunCam = new THREE.PerspectiveCamera(40, 1, 0.01, 200);
+  const gunAmbient = new THREE.AmbientLight(0xffffff, 1.2);
+  gunScene.add(gunAmbient);
+  const gunKey = new THREE.DirectionalLight(0xffffff, 2.0);
+  gunKey.position.set(2, 3, 4);
+  gunScene.add(gunKey);
+  const gunFill = new THREE.DirectionalLight(0x88ddff, 0.8);
+  gunFill.position.set(-2, 1, 2);
+  gunScene.add(gunFill);
+
+  let gunAnimFrame;
+  const mtlLoader2 = new THREE.MTLLoader();
+  mtlLoader2.setPath('assets/squirtgun/');
+  mtlLoader2.load('obj.mtl', mats => {
+    mats.preload();
+    const objLoader2 = new THREE.OBJLoader();
+    objLoader2.setMaterials(mats);
+    objLoader2.setPath('assets/squirtgun/');
+    objLoader2.load('tinker.obj', obj => {
+      const box = new THREE.Box3().setFromObject(obj);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      obj.position.sub(center);
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const scale = 1.6 / maxDim;
+      obj.scale.setScalar(scale);
+      // Orient nicely: slight tilt so it reads as a gun on a shelf
+      obj.rotation.x = -0.2;
+      obj.rotation.y = 0.6;
+      gunScene.add(obj);
+      gunCam.position.set(0, 0, 3.5);
+      gunCam.lookAt(0, 0, 0);
+      // Slow rotation for display
+      function animateGun() {
+        gunAnimFrame = requestAnimationFrame(animateGun);
+        obj.rotation.y += 0.008;
+        gunRenderer.render(gunScene, gunCam);
+      }
+      animateGun();
+    });
+  });
+
   // t=1.5s — hand reaches for big gun
   setTimeout(() => {
     hand.classList.add('reaching');
@@ -2315,6 +2347,8 @@ function runShopSequence() {
 
   // t=6.5s — hide shop, show chapter end card
   setTimeout(() => {
+    cancelAnimationFrame(gunAnimFrame);
+    gunRenderer.dispose();
     shopEl.style.display = 'none';
     chapterEnd.style.display = 'flex';
     setTimeout(() => chapterEnd.classList.add('visible'), 50);
