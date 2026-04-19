@@ -158,6 +158,229 @@ canvas { display: block; }
 #winscreen p { color: #88ccaa; font-size: 1.2em; margin-top: 15px; }
 #winscreen .restart { cursor: pointer; animation: pulse 1.5s infinite; margin-top: 20px; color: #aaffcc; }
 
+/* ── SHOP SCENE ─────────────────────────────────────────── */
+#shop-scene {
+  position: fixed; inset: 0; z-index: 160; display: none;
+  background: #1a1008; flex-direction: column;
+  align-items: center; justify-content: flex-end;
+  font-family: 'Courier New', monospace;
+  overflow: hidden;
+}
+/* ceiling lamp glow */
+#shop-scene::before {
+  content: ''; position: absolute;
+  top: -80px; left: 50%; transform: translateX(-50%);
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(255,220,100,0.18) 0%, transparent 70%);
+  pointer-events: none;
+}
+#shop-bg {
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom, #0d0a05 0%, #2a1e0a 55%, #3a2a10 100%);
+}
+/* wooden counter */
+#shop-counter {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 32%;
+  background: linear-gradient(to bottom, #5c3a1a 0%, #3d2510 60%, #2a1a08 100%);
+  border-top: 6px solid #7a4e28;
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.7);
+}
+/* gun shelf on the back wall */
+#gun-shelf {
+  position: absolute; top: 18%; left: 50%; transform: translateX(-50%);
+  width: 85%; height: 10px;
+  background: linear-gradient(to bottom, #8B5e28, #5c3a1a);
+  border-radius: 3px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+.shelf-gun {
+  position: absolute; bottom: 10px;
+  display: flex; flex-direction: column; align-items: center;
+  cursor: default; transition: transform 0.3s;
+}
+/* small guns */
+.gun-small .gun-body {
+  width: 36px; height: 16px;
+  background: linear-gradient(to bottom, #778899, #445566);
+  border-radius: 3px 6px 3px 3px;
+}
+.gun-small .gun-barrel {
+  width: 6px; height: 26px;
+  background: #556677; margin: 0 auto;
+  border-radius: 2px 2px 0 0;
+  transform: translateY(-2px);
+}
+.gun-small .gun-handle {
+  width: 14px; height: 20px;
+  background: linear-gradient(to bottom, #8B6914, #5c4510);
+  border-radius: 0 0 5px 5px;
+  transform: translateX(6px);
+}
+/* THE big gun */
+#big-gun {
+  position: absolute; bottom: 10px; left: 50%;
+  transform: translateX(-50%);
+  cursor: pointer;
+  transition: transform 0.4s, filter 0.4s;
+  filter: drop-shadow(0 0 18px #00eeff);
+}
+#big-gun:hover { transform: translateX(-50%) scale(1.08); }
+#big-gun.grabbed {
+  transform: translateX(-50%) translateY(-40px) scale(1.15);
+  filter: drop-shadow(0 0 30px #00ffff);
+}
+.big-gun-body {
+  width: 90px; height: 32px;
+  background: linear-gradient(135deg, #00ccee, #0055aa);
+  border-radius: 4px 12px 4px 4px;
+  position: relative;
+}
+.big-gun-barrel {
+  width: 12px; height: 55px;
+  background: linear-gradient(to bottom, #00eeff, #007799);
+  border-radius: 4px 4px 0 0;
+  margin: 0 auto; transform: translateY(-4px);
+  box-shadow: 0 0 12px #00ffff88;
+}
+.big-gun-handle {
+  width: 24px; height: 36px;
+  background: linear-gradient(to bottom, #003366, #001122);
+  border-radius: 0 0 8px 8px;
+  transform: translateX(24px);
+}
+.big-gun-label {
+  font-size: 9px; color: #00ffff; text-align: center;
+  margin-top: 4px; text-shadow: 0 0 6px #00ffff;
+  letter-spacing: 1px;
+}
+/* skeleton shopkeeper */
+#skeleton {
+  position: absolute; bottom: 32%; right: 12%;
+  width: 80px;
+  transition: transform 0.5s;
+}
+#skeleton.asleep { opacity: 0.5; filter: brightness(0.6); }
+#skeleton.awake  { opacity: 1;   filter: brightness(1) drop-shadow(0 0 12px #ffee88); }
+.sk-skull {
+  width: 44px; height: 48px; margin: 0 auto;
+  background: #d4cfc0;
+  border-radius: 50% 50% 45% 45%;
+  position: relative;
+  border: 2px solid #b0a898;
+}
+.sk-eyes {
+  display: flex; justify-content: space-between;
+  padding: 14px 8px 0;
+}
+.sk-eye {
+  width: 10px; height: 12px;
+  background: #1a1208; border-radius: 50%;
+  transition: background 0.3s;
+}
+#skeleton.awake .sk-eye {
+  background: #ff4400;
+  box-shadow: 0 0 8px #ff6600;
+}
+.sk-mouth {
+  width: 24px; height: 6px; margin: 8px auto 0;
+  background: #1a1208; border-radius: 3px;
+  display: flex; justify-content: space-around; align-items: center;
+}
+.sk-tooth { width: 4px; height: 8px; background: #fffde8; border-radius: 1px; }
+.sk-body {
+  width: 36px; height: 48px; margin: 0 auto;
+  background: #c8c3b5;
+  border-radius: 6px;
+  border: 2px solid #a8a398;
+  position: relative;
+}
+.sk-ribs {
+  display: flex; flex-direction: column; gap: 5px;
+  padding: 6px 4px;
+}
+.sk-rib {
+  height: 2px;
+  background: #a8a398;
+  border-radius: 2px;
+}
+.sk-arms {
+  display: flex; justify-content: space-between;
+  margin-top: -44px;
+}
+.sk-arm {
+  width: 10px; height: 40px;
+  background: #c8c3b5;
+  border-radius: 5px;
+  border: 2px solid #a8a398;
+  transition: transform 0.5s;
+}
+#skeleton.awake .sk-arm-l { transform: rotate(-30deg); transform-origin: top center; }
+#skeleton.awake .sk-arm-r { transform: rotate(30deg);  transform-origin: top center; }
+
+/* speech bubble */
+#speech-bubble {
+  position: absolute; bottom: 58%; right: 10%;
+  background: #fffde8;
+  color: #1a1208;
+  font-family: 'Courier New', monospace;
+  font-size: clamp(13px, 2vw, 17px);
+  font-weight: bold;
+  padding: 14px 18px;
+  border-radius: 16px;
+  border: 3px solid #c8a030;
+  max-width: 260px;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.4s;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  line-height: 1.5;
+}
+#speech-bubble::after {
+  content: '';
+  position: absolute; bottom: -18px; right: 30px;
+  width: 0; height: 0;
+  border-left: 12px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 18px solid #c8a030;
+}
+#speech-bubble.visible { opacity: 1; }
+
+/* "reach" hand overlay */
+#reach-hand {
+  position: absolute; bottom: 36%; left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  font-size: 3.5em;
+  opacity: 0;
+  transition: transform 0.6s, opacity 0.4s;
+  pointer-events: none;
+}
+#reach-hand.reaching {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-10px);
+}
+
+/* chapter end card */
+#chapter-end {
+  position: fixed; inset: 0; z-index: 170; display: none;
+  background: #000;
+  flex-direction: column; align-items: center; justify-content: center;
+  font-family: 'Courier New', monospace;
+}
+#chapter-end .ch-title {
+  color: #ffcc44;
+  font-size: clamp(1em, 4vw, 2em);
+  text-align: center;
+  text-shadow: 0 0 30px #ffaa00;
+  letter-spacing: 2px;
+  opacity: 0;
+  transition: opacity 1.5s;
+  padding: 0 30px;
+  line-height: 1.6;
+}
+#chapter-end.visible .ch-title { opacity: 1; }
+
+/* ── END SHOP SCENE ─────────────────────────────────────── */
+
 @keyframes shake {
   0%,100% { transform: translate(0,0); }
   10% { transform: translate(-10px, 8px); }
@@ -248,7 +471,7 @@ canvas { display: block; }
     Avoid Wally. If he catches you... it's over.
   </div>
   <div class="start-msg">[ TAP TO ENTER THE WATERPARK ]</div>
-  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v4.2</div>
+  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v4.3</div>
 </div>
 
 <div id="pause-btn" onclick="event.stopPropagation();togglePause();" ontouchstart="event.preventDefault();event.stopPropagation();togglePause();" style="display:none;position:fixed;top:15px;left:50%;transform:translateX(-50%);width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.5);font-size:1.4em;align-items:center;justify-content:center;cursor:pointer;user-select:none;touch-action:none;z-index:50;font-family:'Courier New',monospace;">☰</div>
@@ -315,6 +538,91 @@ canvas { display: block; }
   <h1>YOU ESCAPED!</h1>
   <p>You survived Wally Walrus's Waterpark.</p>
   <p class="restart">[ Click to play again ]</p>
+</div>
+
+<!-- SHOP SCENE -->
+<div id="shop-scene">
+  <div id="shop-bg"></div>
+
+  <!-- back wall gun shelf -->
+  <div id="gun-shelf">
+    <!-- small gun left -->
+    <div class="shelf-gun gun-small" style="left:8%">
+      <div class="gun-barrel"></div>
+      <div class="gun-body"></div>
+      <div class="gun-handle"></div>
+    </div>
+    <!-- small gun left-center -->
+    <div class="shelf-gun gun-small" style="left:22%">
+      <div class="gun-barrel"></div>
+      <div class="gun-body"></div>
+      <div class="gun-handle"></div>
+    </div>
+    <!-- small gun right-center -->
+    <div class="shelf-gun gun-small" style="right:22%">
+      <div class="gun-barrel"></div>
+      <div class="gun-body"></div>
+      <div class="gun-handle"></div>
+    </div>
+    <!-- small gun right -->
+    <div class="shelf-gun gun-small" style="right:8%">
+      <div class="gun-barrel"></div>
+      <div class="gun-body"></div>
+      <div class="gun-handle"></div>
+    </div>
+    <!-- THE big gun — center -->
+    <div id="big-gun">
+      <div class="big-gun-barrel"></div>
+      <div class="big-gun-body"></div>
+      <div class="big-gun-handle"></div>
+      <div class="big-gun-label">HYDRO-9000</div>
+    </div>
+  </div>
+
+  <!-- shopkeeper skeleton -->
+  <div id="skeleton" class="asleep">
+    <div class="sk-skull">
+      <div class="sk-eyes">
+        <div class="sk-eye"></div>
+        <div class="sk-eye"></div>
+      </div>
+      <div class="sk-mouth">
+        <div class="sk-tooth"></div>
+        <div class="sk-tooth"></div>
+        <div class="sk-tooth"></div>
+      </div>
+    </div>
+    <div class="sk-arms">
+      <div class="sk-arm sk-arm-l"></div>
+      <div class="sk-body">
+        <div class="sk-ribs">
+          <div class="sk-rib"></div>
+          <div class="sk-rib"></div>
+          <div class="sk-rib"></div>
+          <div class="sk-rib"></div>
+        </div>
+      </div>
+      <div class="sk-arm sk-arm-r"></div>
+    </div>
+  </div>
+
+  <!-- speech bubble -->
+  <div id="speech-bubble">Whoa there, buddy!<br>You can't afford that gun!</div>
+
+  <!-- reach hand -->
+  <div id="reach-hand">🤚</div>
+
+  <!-- counter -->
+  <div id="shop-counter"></div>
+</div>
+
+<!-- CHAPTER END CARD -->
+<div id="chapter-end">
+  <div class="ch-title">
+    END OF<br>
+    <span style="font-size:1.3em; color:#fff;">WALLY WALRUS'S WATER PARK</span><br>
+    <span style="font-size:0.8em; color:#ffaa00; letter-spacing:3px;">CHAPTER 1: RUDE AWAKENING</span>
+  </div>
 </div>
 
 <script src="https://unpkg.com/three@0.152.2/build/three.min.js"></script>
@@ -1952,12 +2260,90 @@ function triggerWin() {
   hud.style.display = 'none';
   if (isTouchDevice) document.getElementById('touch-controls').style.display = 'none';
 
+  // victory jingle, then straight into shop
   playSound(440, 0.3, 0.15, 'sine');
   setTimeout(() => playSound(554, 0.3, 0.12, 'sine'), 200);
   setTimeout(() => playSound(659, 0.3, 0.12, 'sine'), 400);
   setTimeout(() => playSound(880, 0.5, 0.15, 'sine'), 600);
 
-  winscreenEl.style.display = 'flex';
+  setTimeout(runShopSequence, 1000);
+}
+
+function runShopSequence() {
+  const shopEl      = document.getElementById('shop-scene');
+  const skeleton    = document.getElementById('skeleton');
+  const bubble      = document.getElementById('speech-bubble');
+  const hand        = document.getElementById('reach-hand');
+  const bigGun      = document.getElementById('big-gun');
+  const chapterEnd  = document.getElementById('chapter-end');
+
+  // reset state
+  skeleton.className = 'asleep';
+  bubble.classList.remove('visible');
+  hand.classList.remove('reaching');
+  bigGun.classList.remove('grabbed');
+  chapterEnd.style.display = 'none';
+  chapterEnd.classList.remove('visible');
+
+  shopEl.style.display = 'flex';
+
+  // t=1.5s — hand reaches for big gun
+  setTimeout(() => {
+    hand.classList.add('reaching');
+    bigGun.classList.add('grabbed');
+  }, 1500);
+
+  // t=2.5s — skeleton wakes up
+  setTimeout(() => {
+    skeleton.className = 'awake';
+    // rattle sound: quick noise bursts
+    if (audioCtx) {
+      [0, 80, 160, 240].forEach(d => setTimeout(() => {
+        const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.08, audioCtx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = (Math.random()*2-1) * 0.4;
+        const src = audioCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(audioCtx.destination);
+        src.start();
+      }, d));
+    }
+  }, 2500);
+
+  // t=3.2s — speech bubble appears
+  setTimeout(() => { bubble.classList.add('visible'); }, 3200);
+
+  // t=6.5s — hide shop, show chapter end card
+  setTimeout(() => {
+    shopEl.style.display = 'none';
+    chapterEnd.style.display = 'flex';
+    setTimeout(() => chapterEnd.classList.add('visible'), 50);
+
+    // low dramatic hum
+    if (audioCtx) {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = 'sine'; o.frequency.value = 60;
+      g.gain.setValueAtTime(0, audioCtx.currentTime);
+      g.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 1.5);
+      g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 4);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(); o.stop(audioCtx.currentTime + 4.5);
+    }
+  }, 6500);
+
+  // t=11.5s — fade out and return to title
+  setTimeout(() => {
+    chapterEnd.style.transition = 'opacity 1.5s';
+    chapterEnd.style.opacity = '0';
+    setTimeout(() => {
+      chapterEnd.style.display = 'none';
+      chapterEnd.style.opacity = '';
+      chapterEnd.style.transition = '';
+      chapterEnd.classList.remove('visible');
+      goToMenu();
+    }, 1600);
+  }, 11500);
 }
 
 function togglePause() {
@@ -1997,6 +2383,8 @@ function resetGame() {
   gameState = 'PLAYING';
   gameoverEl.style.display = 'none';
   winscreenEl.style.display = 'none';
+  document.getElementById('shop-scene').style.display = 'none';
+  document.getElementById('chapter-end').style.display = 'none';
   document.getElementById('pause-screen').style.display = 'none';
   hud.style.display = 'block';
   document.getElementById('pause-btn').style.display = 'flex';
