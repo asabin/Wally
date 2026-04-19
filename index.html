@@ -457,7 +457,7 @@ canvas { display: block; }
     Avoid Wally. If he catches you... it's over.
   </div>
   <div class="start-msg">[ TAP TO ENTER THE WATERPARK ]</div>
-  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v4.5</div>
+  <div id="version-badge" style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;cursor:default;user-select:none;-webkit-user-select:none;">v4.6</div>
 </div>
 
 <div id="pause-btn" onclick="event.stopPropagation();togglePause();" ontouchstart="event.preventDefault();event.stopPropagation();togglePause();" style="display:none;position:fixed;top:15px;left:50%;transform:translateX(-50%);width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.5);font-size:1.4em;align-items:center;justify-content:center;cursor:pointer;user-select:none;touch-action:none;z-index:50;font-family:'Courier New',monospace;">☰</div>
@@ -1759,6 +1759,23 @@ function setupControls() {
     // Easter egg: press backtick (`) to skip to shop
     if (k === '`' && gameState === 'PLAYING') { triggerWin(); }
   });
+
+  // Easter egg: tap version badge 5x to skip to shop (iPad-friendly)
+  let versionTaps = 0, versionTapTimer;
+  const versionBadge = document.getElementById('version-badge');
+  function handleVersionTap() {
+    if (gameState !== 'PLAYING') return;
+    versionTaps++;
+    clearTimeout(versionTapTimer);
+    if (versionTaps >= 5) {
+      versionTaps = 0;
+      triggerWin();
+    } else {
+      versionTapTimer = setTimeout(() => { versionTaps = 0; }, 2000);
+    }
+  }
+  versionBadge.addEventListener('click', handleVersionTap);
+  versionBadge.addEventListener('touchend', (e) => { e.preventDefault(); handleVersionTap(); });
 
   document.addEventListener('keyup', (e) => {
     const k = e.key.toLowerCase();
