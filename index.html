@@ -187,7 +187,7 @@ canvas { display: block; }
 }
 /* gun shelf on the back wall */
 #gun-shelf {
-  position: absolute; top: 18%; left: 50%; transform: translateX(-50%);
+  position: absolute; top: 42%; left: 50%; transform: translateX(-50%);
   width: 85%; height: 10px;
   background: linear-gradient(to bottom, #8B5e28, #5c3a1a);
   border-radius: 3px;
@@ -218,19 +218,21 @@ canvas { display: block; }
 }
 /* THE big gun */
 #big-gun {
-  position: absolute; bottom: 10px; left: 50%;
+  position: absolute;
+  top: calc(42% - 190px); left: 50%;
   transform: translateX(-50%);
   cursor: pointer;
   transition: transform 0.4s, filter 0.4s;
   filter: drop-shadow(0 0 18px #00eeff);
   display: flex; flex-direction: column; align-items: center;
+  z-index: 2;
 }
 #big-gun.grabbed {
   transform: translateX(-50%) translateY(-40px) scale(1.15);
   filter: drop-shadow(0 0 30px #00ffff);
 }
 #gun-canvas {
-  width: 200px; height: 200px;
+  width: 260px; height: 200px;
   display: block;
   background: transparent;
 }
@@ -457,7 +459,7 @@ canvas { display: block; }
     Avoid Wally. If he catches you... it's over.
   </div>
   <div class="start-msg">[ TAP TO ENTER THE WATERPARK ]</div>
-  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v4.7</div>
+  <div style="position:absolute;bottom:10px;right:15px;color:rgba(255,255,255,0.4);font-size:0.9em;">v4.9</div>
 </div>
 
 <div id="version-badge" style="display:none;position:fixed;bottom:10px;right:0;color:rgba(255,255,255,0.25);font-size:0.9em;font-family:'Courier New',monospace;z-index:50;padding:20px 15px;cursor:default;user-select:none;-webkit-user-select:none;touch-action:manipulation;"></div>
@@ -558,11 +560,7 @@ canvas { display: block; }
       <div class="gun-body"></div>
       <div class="gun-handle"></div>
     </div>
-    <!-- THE big gun — center, rendered as 3D model -->
-    <div id="big-gun">
-      <canvas id="gun-canvas"></canvas>
-      <div class="big-gun-label">HYDRO-9000</div>
-    </div>
+    <!-- small guns flank the centre gap for the big gun -->
   </div>
 
   <!-- shopkeeper skeleton -->
@@ -590,6 +588,12 @@ canvas { display: block; }
       </div>
       <div class="sk-arm sk-arm-r"></div>
     </div>
+  </div>
+
+  <!-- THE big gun — direct child of shop-scene, sits above counter -->
+  <div id="big-gun">
+    <canvas id="gun-canvas"></canvas>
+    <div class="big-gun-label">HYDRO-9000</div>
   </div>
 
   <!-- speech bubble -->
@@ -2237,7 +2241,7 @@ function startGame() {
   hud.style.display = 'block';
   document.getElementById('pause-btn').style.display = 'flex';
   const vb = document.getElementById('version-badge');
-  vb.textContent = 'v4.7'; vb.style.display = 'block';
+  vb.textContent = 'v4.9'; vb.style.display = 'block';
   if (isTouchDevice) {
     document.getElementById('touch-controls').style.display = 'block';
     isPointerLocked = true; // fake it so updatePlayer runs
@@ -2284,13 +2288,13 @@ function triggerWin() {
 function preloadGun() {
   const gunCanvas = document.getElementById('gun-canvas');
   gunRenderer = new THREE.WebGLRenderer({ canvas: gunCanvas, antialias: true, alpha: true });
-  gunRenderer.setSize(200, 200);
+  gunRenderer.setSize(260, 200);
   gunRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   gunRenderer.setClearColor(0x000000, 0);
 
   gunScene = new THREE.Scene();
-  gunCam = new THREE.PerspectiveCamera(40, 1, 0.01, 200);
-  gunCam.position.set(0, 0.3, 3.5);
+  gunCam = new THREE.PerspectiveCamera(55, 260/200, 0.01, 200);
+  gunCam.position.set(0, 0.2, 3.0);
   gunCam.lookAt(0, 0, 0);
 
   gunScene.add(new THREE.AmbientLight(0xffffff, 1.2));
@@ -2307,16 +2311,28 @@ function preloadGun() {
     objL.setMaterials(mats);
     objL.setPath('assets/squirtgun/');
     objL.load('tinker.obj', obj => {
-      const box = new THREE.Box3().setFromObject(obj);
-      const center = box.getCenter(new THREE.Vector3());
-      const size   = box.getSize(new THREE.Vector3());
-      obj.position.sub(center);
-      obj.scale.setScalar(1.8 / size.x);
+      // Step 1: apply rotation first (Tinkercad Z-up → Three.js Y-up)
       obj.rotation.x = -Math.PI / 2;
-      obj.rotation.z = 0.4;
+      obj.rotation.z = 0.3; // slight tilt for nice 3/4 view
+      obj.updateMatrixWorld(true);
+
+      // Step 2: compute bounding box in rotated world space
+      const box = new THREE.Box3().setFromObject(obj);
+      const size = box.getSize(new THREE.Vector3());
+
+      // Step 3: scale so the tallest dimension fills most of the canvas
+      // Camera FOV=40, Z=3.5 → visible height = 2*3.5*tan(20°) ≈ 2.55 units
+      const maxDim = Math.max(size.y, size.z); // ignore barrel length (X)
+      obj.scale.setScalar(1.1 / maxDim);
+      obj.updateMatrixWorld(true);
+
+      // Step 4: recompute box after scale, then centre properly
+      const box2 = new THREE.Box3().setFromObject(obj);
+      const center2 = box2.getCenter(new THREE.Vector3());
+      obj.position.sub(center2);
+
       gunObj = obj;
       gunScene.add(gunObj);
-      // Do one render so it's ready
       gunRenderer.render(gunScene, gunCam);
     }, undefined, err => console.error('Gun OBJ load error:', err));
   }, undefined, err => console.error('Gun MTL load error:', err));
